@@ -23,6 +23,7 @@ local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 local noclipEnabled = false
 local airwalkEnabled = false
 local airwalkPart = nil
+local airwalkConnection = nil
 local infiniteJumpEnabled = false
 local currentSpeed = 16
 local currentJump = 50
@@ -142,8 +143,8 @@ mainStroke.Parent = mainFrame
 -- Создаём ButtonContainer (как в оригинале)
 local buttonContainer = Instance.new("Frame")
 buttonContainer.Name = "ButtonContainer"
-buttonContainer.Size = UDim2.new(0, 60, 0, 30)
-buttonContainer.Position = UDim2.new(1, -65, 0, 5)
+buttonContainer.Size = UDim2.new(0, 90, 0, 30)
+buttonContainer.Position = UDim2.new(1, -95, 0, 5)
 buttonContainer.BackgroundColor3 = Color3.fromRGB(163, 162, 165)
 buttonContainer.BackgroundTransparency = 1
 buttonContainer.BorderSizePixel = 1
@@ -153,9 +154,9 @@ local minimizeButton = Instance.new("TextButton")
 minimizeButton.Name = "MinimizeButton"
 minimizeButton.Size = UDim2.new(0, 25, 0, 25)
 minimizeButton.Position = UDim2.new(0, 0, 0, 0)
-minimizeButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-minimizeButton.BackgroundTransparency = 0
-minimizeButton.BorderSizePixel = 1
+minimizeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+minimizeButton.BackgroundTransparency = 1
+minimizeButton.BorderSizePixel = 0
 minimizeButton.Text = "-"
 minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 minimizeButton.TextSize = 20
@@ -168,23 +169,51 @@ minimizeCorner.Parent = minimizeButton
 -- Hover эффект для кнопки свернуть
 minimizeButton.MouseEnter:Connect(function()
 	TweenService:Create(minimizeButton, TweenInfo.new(0.2), {
-		BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+		BackgroundTransparency = 0.5
 	}):Play()
 end)
 minimizeButton.MouseLeave:Connect(function()
 	TweenService:Create(minimizeButton, TweenInfo.new(0.2), {
-		BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		BackgroundTransparency = 1
 	}):Play()
 end)
+-- Кнопка развернуть/сжать (⛶)
+local maximizeButton = Instance.new("TextButton")
+maximizeButton.Name = "MaximizeButton"
+maximizeButton.Size = UDim2.new(0, 25, 0, 25)
+maximizeButton.Position = UDim2.new(0, 30, 0, 0)
+maximizeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+maximizeButton.BackgroundTransparency = 1
+maximizeButton.BorderSizePixel = 0
+maximizeButton.Text = "⛶"
+maximizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+maximizeButton.TextSize = 16
+maximizeButton.Font = Enum.Font.GothamBold
+maximizeButton.Parent = buttonContainer
+-- UICorner для кнопки развернуть
+local maximizeCorner = Instance.new("UICorner")
+maximizeCorner.CornerRadius = UDim.new(0, 6)
+maximizeCorner.Parent = maximizeButton
+-- Hover эффект для кнопки развернуть
+maximizeButton.MouseEnter:Connect(function()
+	TweenService:Create(maximizeButton, TweenInfo.new(0.2), {
+		BackgroundTransparency = 0.5
+	}):Play()
+end)
+maximizeButton.MouseLeave:Connect(function()
+	TweenService:Create(maximizeButton, TweenInfo.new(0.2), {
+		BackgroundTransparency = 1
+	}):Play()
+end)
+
 -- Кнопка закрыть (×) - как в оригинале
 local closeButton = Instance.new("TextButton")
 closeButton.Name = "CloseButton"
 closeButton.Size = UDim2.new(0, 25, 0, 25)
-closeButton.Position = UDim2.new(0, 30, 0, 0)
-closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeButton.BackgroundTransparency = 0
-closeButton.BorderSizePixel = 1
-closeButton.BorderColor3 = Color3.fromRGB(27, 42, 53)
+closeButton.Position = UDim2.new(0, 60, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+closeButton.BackgroundTransparency = 1
+closeButton.BorderSizePixel = 0
 closeButton.Text = "×"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.TextSize = 20
@@ -197,12 +226,12 @@ closeCorner.Parent = closeButton
 -- Hover эффект для кнопки закрыть (как в оригинале)
 closeButton.MouseEnter:Connect(function()
 	TweenService:Create(closeButton, TweenInfo.new(0.2), {
-		BackgroundColor3 = Color3.fromRGB(220, 70, 70)
+		BackgroundTransparency = 0.5
 	}):Play()
 end)
 closeButton.MouseLeave:Connect(function()
 	TweenService:Create(closeButton, TweenInfo.new(0.2), {
-		BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		BackgroundTransparency = 1
 	}):Play()
 end)
 -- Создаём Sidebar (как в оригинале)
@@ -359,8 +388,8 @@ local function createCategoryButton(categoryName, index)
 	button.Name = categoryName .. "Button"
 	button.Size = UDim2.new(1, -20, 0, 40)
 	button.Position = UDim2.new(0, 5, 0, 40 + (index - 1) * 45)
-	button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	button.BackgroundTransparency = 0.8
+	button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	button.BackgroundTransparency = 1
 	button.BorderSizePixel = 0
 	button.Text = categoryName
 	button.TextColor3 = Color3.fromRGB(220, 220, 220)
@@ -389,8 +418,8 @@ local function createCategoryButton(categoryName, index)
 	button.MouseEnter:Connect(function()
 		if currentCategory ~= categoryName then
 			TweenService:Create(button, TweenInfo.new(0.2), {
-				BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-				BackgroundTransparency = 0.6
+				BackgroundColor3 = Color3.fromRGB(80, 80, 80),
+				BackgroundTransparency = 0.5
 			}):Play()
 		end
 	end)
@@ -398,8 +427,8 @@ local function createCategoryButton(categoryName, index)
 	button.MouseLeave:Connect(function()
 		if currentCategory ~= categoryName then
 			TweenService:Create(button, TweenInfo.new(0.2), {
-				BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-				BackgroundTransparency = 0.8
+				BackgroundColor3 = Color3.fromRGB(80, 80, 80),
+				BackgroundTransparency = 1
 			}):Play()
 		end
 	end)
@@ -1261,13 +1290,18 @@ local function createCategoryFrame(categoryName)
 				airwalkPart.Parent = workspace
 				
 				-- Обновляем позицию платформы
-				RunService.RenderStepped:Connect(function()
+				airwalkConnection = RunService.RenderStepped:Connect(function()
 					if airwalkEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 						local hrp = LocalPlayer.Character.HumanoidRootPart
 						airwalkPart.Position = Vector3.new(hrp.Position.X, hrp.Position.Y - 3, hrp.Position.Z)
 					end
 				end)
 			else
+				-- Отключаем connection
+				if airwalkConnection then
+					airwalkConnection:Disconnect()
+					airwalkConnection = nil
+				end
 				-- Удаляем платформу
 				if airwalkPart then
 					airwalkPart:Destroy()
@@ -1308,9 +1342,9 @@ local function createCategoryFrame(categoryName)
 			isPotatoGraphicsEnabled = isToggled
 						
 			if isPotatoGraphicsEnabled then
-				enablePotatoGraphics()
+				task.spawn(enablePotatoGraphics)
 			else
-				disablePotatoGraphics()
+				task.spawn(disablePotatoGraphics)
 			end
 		end)
 	end
@@ -1459,8 +1493,8 @@ local function showCategory(categoryName)
 	-- Сбрасываем все кнопки
 	for name, button in pairs(categoryButtons) do
 		TweenService:Create(button, TweenInfo.new(0.2), {
-			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-			BackgroundTransparency = 0.8,
+			BackgroundColor3 = Color3.fromRGB(80, 80, 80),
+			BackgroundTransparency = 1,
 			TextColor3 = Color3.fromRGB(220, 220, 220)
 		}):Play()
 	end
@@ -1474,7 +1508,7 @@ local function showCategory(categoryName)
 	if categoryButtons[categoryName] then
 		TweenService:Create(categoryButtons[categoryName], TweenInfo.new(0.2), {
 			BackgroundColor3 = Color3.fromRGB(60, 100, 180),
-			BackgroundTransparency = 0.6,
+			BackgroundTransparency = 0.5,
 			TextColor3 = Color3.fromRGB(255, 255, 255)
 		}):Play()
 	end
@@ -1534,8 +1568,31 @@ iconImageStroke.Color = Color3.fromRGB(251, 255, 255)
 iconImageStroke.Thickness = 2.5
 iconImageStroke.Transparency = 0
 iconImageStroke.Parent = iconImage
+-- Переменные для перетаскивания
+local draggingMainFrame = false
+local dragStartMainFrame = nil
+local startPosMainFrame = nil
+local isDraggingMainFrame = false
+
+local draggingMenuIcon = false
+local dragStartMenuIcon = nil
+local startPosMenuIcon = nil
+local isDraggingMenuIcon = false
+
+-- Переменные для изменения размера
+local isResizing = false
+local resizeStartPos = nil
+local resizeStartSize = nil
+
 -- Переменная состояния меню
 local menuOpen = false
+
+-- Переменные для максимизации
+local isMaximized = false
+local originalSize = UDim2.new(0, 700, 0, 500)
+local originalPosition = UDim2.new(0.5, -350, 0.5, -250)
+local maximizedSize = UDim2.new(1, -40, 1, -40)
+local maximizedPosition = UDim2.new(0, 20, 0, 20)
 -- Функция для переключения меню
 local function toggleMenu()
 	menuOpen = not menuOpen
@@ -1556,10 +1613,133 @@ local function toggleMenu()
 		mainFrame.Visible = false
 	end
 end
+-- Перетаскивание mainFrame
+mainFrame.Active = true
+mainFrame.Draggable = true
+
+-- Перетаскивание menuIcon
+menuIcon.Active = true
+menuIcon.Draggable = true
+
 -- Подключаем иконку меню
 menuIcon.MouseButton1Click:Connect(toggleMenu)
+-- Уголок для изменения размера (закругленный угол справа от меню)
+local resizeHandle = Instance.new("TextButton")
+resizeHandle.Name = "ResizeHandle"
+resizeHandle.Size = UDim2.new(0, 50, 0, 50)
+resizeHandle.Position = UDim2.new(1, 0, 1, 0)
+resizeHandle.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+resizeHandle.BackgroundTransparency = 0.3
+resizeHandle.BorderSizePixel = 0
+resizeHandle.Text = ""
+resizeHandle.ZIndex = 10
+resizeHandle.Parent = mainFrame
+
+-- UICorner для уголка (закругленный угол)
+local resizeCorner = Instance.new("UICorner")
+resizeCorner.CornerRadius = UDim.new(0, 25)
+resizeCorner.Parent = resizeHandle
+
+-- Визуальный уголок - вертикальная линия (продлевается наверх)
+local resizeVertical = Instance.new("Frame")
+resizeVertical.Name = "ResizeVertical"
+resizeVertical.Size = UDim2.new(0, 4, 0, 40)
+resizeVertical.Position = UDim2.new(0.5, -2, 0.1, 0)
+resizeVertical.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+resizeVertical.BorderSizePixel = 0
+resizeVertical.Parent = resizeHandle
+
+-- Визуальный уголок - горизонтальная линия (продлевается налево)
+local resizeHorizontal = Instance.new("Frame")
+resizeHorizontal.Name = "ResizeHorizontal"
+resizeHorizontal.Size = UDim2.new(0, 40, 0, 4)
+resizeHorizontal.Position = UDim2.new(0.1, 0, 0.5, -2)
+resizeHorizontal.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+resizeHorizontal.BorderSizePixel = 0
+resizeHorizontal.Parent = resizeHandle
+
+-- UICorner для линий
+local verticalCorner = Instance.new("UICorner")
+verticalCorner.CornerRadius = UDim.new(0, 2)
+verticalCorner.Parent = resizeVertical
+
+local horizontalCorner = Instance.new("UICorner")
+horizontalCorner.CornerRadius = UDim.new(0, 2)
+horizontalCorner.Parent = resizeHorizontal
+
+-- Функция для изменения размера (увеличение и уменьшение)
+resizeHandle.MouseButton1Down:Connect(function()
+	isResizing = true
+	resizeStartPos = UserInputService:GetMouseLocation()
+	resizeStartSize = mainFrame.AbsoluteSize
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		isResizing = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	
+	if isResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local mousePos = UserInputService:GetMouseLocation()
+		local delta = mousePos - resizeStartPos
+		
+		-- Увеличение и уменьшение размера с минимальными ограничениями
+		local newWidth = math.max(400, resizeStartSize.X + delta.X)
+		local newHeight = math.max(300, resizeStartSize.Y + delta.Y)
+		
+		mainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+	end
+end)
+
+-- Hover эффект для уголка
+resizeHandle.MouseEnter:Connect(function()
+	TweenService:Create(resizeHandle, TweenInfo.new(0.2), {
+		BackgroundTransparency = 0
+	}):Play()
+end)
+
+resizeHandle.MouseLeave:Connect(function()
+	TweenService:Create(resizeHandle, TweenInfo.new(0.2), {
+		BackgroundTransparency = 0.3
+	}):Play()
+end)
+
+-- Функция для максимизации/восстановления
+local function toggleMaximize()
+	isMaximized = not isMaximized
+	
+	if isMaximized then
+		-- Сохраняем текущие позицию и размер
+		originalSize = mainFrame.Size
+		originalPosition = mainFrame.Position
+		
+		-- Развернуть на весь экран
+		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+			Size = maximizedSize,
+			Position = maximizedPosition
+		}):Play()
+		
+		maximizeButton.Text = "⛶"
+	else
+		-- Восстановить исходный размер
+		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
+			Size = originalSize,
+			Position = originalPosition
+		}):Play()
+		
+		maximizeButton.Text = "⛶"
+	end
+end
+
 -- Подключаем кнопку свернуть
 minimizeButton.MouseButton1Click:Connect(toggleMenu)
+
+-- Подключаем кнопку развернуть/сжать
+maximizeButton.MouseButton1Click:Connect(toggleMaximize)
 -- Создаём диалоговое окно закрытия (как в оригинале)
 local closeDialog = Instance.new("Frame")
 closeDialog.Name = "CloseDialog"
@@ -1753,13 +1933,7 @@ RunService.Stepped:Connect(function()
 		end
 	end
 end)
--- Обработка Airwalk
-RunService.RenderStepped:Connect(function()
-	if airwalkEnabled and airwalkPart and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-		local hrp = LocalPlayer.Character.HumanoidRootPart
-		airwalkPart.Position = Vector3.new(hrp.Position.X, hrp.Position.Y - 3, hrp.Position.Z)
-	end
-end)
+-- Airwalk обрабатывается внутри toggle функции
 -- Обработка при спавне персонажа
 LocalPlayer.CharacterAdded:Connect(function(character)
 	-- Применяем настройки
