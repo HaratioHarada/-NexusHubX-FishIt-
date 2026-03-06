@@ -157,7 +157,7 @@ minimizeButton.Position = UDim2.new(0, 0, 0, 0)
 minimizeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 minimizeButton.BackgroundTransparency = 1
 minimizeButton.BorderSizePixel = 0
-minimizeButton.Text = "-"
+minimizeButton.Text = "\u{2212}"
 minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 minimizeButton.TextSize = 20
 minimizeButton.Font = Enum.Font.GothamBold
@@ -214,7 +214,7 @@ closeButton.Position = UDim2.new(0, 60, 0, 0)
 closeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 closeButton.BackgroundTransparency = 1
 closeButton.BorderSizePixel = 0
-closeButton.Text = "×"
+closeButton.Text = "\u{00D7}"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.TextSize = 20
 closeButton.Font = Enum.Font.GothamBold
@@ -378,7 +378,7 @@ local scrollLayout = Instance.new("UIListLayout")
 scrollLayout.Padding = UDim.new(0, 10)
 scrollLayout.Parent = scrollFrame
 -- Категории
-local categories = {"Farm", "Shop", "Teleport", "Auto Favorite", "Webhook", "Misc", "Settings"}
+local categories = {"Farm", "Shop", "Teleport", "☆ Auto Favorite", "Webhook", "Misc", "Settings"}
 local categoryButtons = {}
 local categoryFrames = {}
 local currentCategory = "Farm"
@@ -1249,7 +1249,7 @@ local function createCategoryFrame(categoryName)
 			playerMenu.Visible = true
 		end)
 		
-	elseif categoryName == "Auto Favorite" then
+	elseif categoryName == "☆ Auto Favorite" then
 		createToggleElement(frame, "Auto Favorite All", function(isToggled)
 					end)
 		createToggleElement(frame, "Auto Favorite Rare", function(isToggled)
