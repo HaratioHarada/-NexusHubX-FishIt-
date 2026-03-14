@@ -7,6 +7,9 @@ local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local GuiService = game:GetService("GuiService")
 local camera = workspace.CurrentCamera
 local mouse = Players.LocalPlayer:GetMouse()
 
@@ -19,7 +22,7 @@ local Character = LocalPlayer.Character or LocalPlayer:WaitForChild("Character")
 local Humanoid = Character and Character:FindFirstChild("Humanoid")
 local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 
--- Переменные для функций
+-- Variables for functions
 local noclipEnabled = false
 local airwalkEnabled = false
 local airwalkPart = nil
@@ -34,7 +37,7 @@ local isChangingKeybind = false
 local pingMonitorFrame = nil
 local pingValueLabel = nil
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
--- Цветовая схема (как в оригинале)
+-- Color scheme (as in original)
 local Colors = {
 	Background = Color3.fromRGB(15, 15, 15),
 	Sidebar = Color3.fromRGB(18, 18, 18),
@@ -48,15 +51,151 @@ local Colors = {
 	ToggleOff = Color3.fromRGB(90, 90, 90),
 	ToggleOn = Color3.fromRGB(60, 180, 100)
 }
--- Создаём ScreenGui
+-- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NexusHubX_FishIt"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = playerGui
--- Создание Ping Monitor UI
+
+-- Notification System
+local notificationContainer = nil
+local activeNotifications = {}
+local notificationCount = 0 -- Counter for tracking notification count
+
+-- Create notification container
+local function createNotificationContainer()
+	if notificationContainer then return notificationContainer end
+
+	notificationContainer = Instance.new("ScreenGui")
+	notificationContainer.Name = "NotificationContainer"
+	notificationContainer.ResetOnSpawn = false
+	notificationContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	notificationContainer.Parent = playerGui
+
+	return notificationContainer
+end
+
+-- Function to show notification
+local function showNotification(title, message, duration)
+	duration = duration or 5
+
+	local container = createNotificationContainer()
+
+	-- Create notification
+	local notification = Instance.new("Frame")
+	notification.Name = "Notification"
+	notification.Size = UDim2.new(0, 300, 0, 80)
+	notification.Position = UDim2.new(1, -310, 1, -90)
+	notification.BackgroundColor3 = Colors.Background
+	notification.BackgroundTransparency = 0.3
+	notification.BorderSizePixel = 0
+	notification.Parent = container
+
+	-- UICorner
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 12)
+	corner.Parent = notification
+
+	-- UIStroke for border
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Colors.Stroke
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
+	stroke.Parent = notification
+
+	-- Title
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Name = "Title"
+	titleLabel.Size = UDim2.new(1, -40, 0, 25)
+	titleLabel.Position = UDim2.new(0, 10, 0, 8)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = title
+	titleLabel.TextColor3 = Colors.Text
+	titleLabel.TextSize = 14
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+	titleLabel.Parent = notification
+
+	-- Message
+	local messageLabel = Instance.new("TextLabel")
+	messageLabel.Name = "Message"
+	messageLabel.Size = UDim2.new(1, -40, 0, 20)
+	messageLabel.Position = UDim2.new(0, 10, 0, 33)
+	messageLabel.BackgroundTransparency = 1
+	messageLabel.Text = message
+	messageLabel.TextColor3 = Colors.Text
+	messageLabel.TextSize = 13
+	messageLabel.Font = Enum.Font.Gotham
+	messageLabel.TextXAlignment = Enum.TextXAlignment.Left
+	messageLabel.Parent = notification
+
+	-- Close button
+	local closeButton = Instance.new("TextButton")
+	closeButton.Name = "CloseButton"
+	closeButton.Size = UDim2.new(0, 25, 0, 25)
+	closeButton.Position = UDim2.new(1, -30, 0, 5)
+	closeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+	closeButton.BackgroundTransparency = 0.3
+	closeButton.BorderSizePixel = 0
+	closeButton.Text = "✕"
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.TextSize = 16
+	closeButton.Font = Enum.Font.GothamBold
+	closeButton.Parent = notification
+
+	-- UICorner for close button
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeButton
+
+	-- Close notification function
+	local function closeNotification()
+		if activeNotifications[notification] then
+			activeNotifications[notification] = nil
+			notificationCount = notificationCount - 1
+
+			-- Move remaining notifications up
+			for notif, _ in pairs(activeNotifications) do
+				local currentPos = notif.Position
+				TweenService:Create(notif, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+					Position = UDim2.new(1, -310, currentPos.Y.Scale, currentPos.Y.Offset + 90)
+				}):Play()
+			end
+
+			-- Animate closing current notification
+			TweenService:Create(notification, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
+				Position = UDim2.new(1, -310, 1, -90)
+			}):Play()
+			task.wait(0.3)
+			notification:Destroy()
+		end
+	end
+
+	-- Close button handler
+	closeButton.MouseButton1Click:Connect(closeNotification)
+
+	-- Appearance animation
+	local targetY = -90 - (notificationCount * 90)
+	TweenService:Create(notification, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+		Position = UDim2.new(1, -310, 1, targetY)
+	}):Play()
+
+	activeNotifications[notification] = true
+	notificationCount = notificationCount + 1
+
+	-- Auto close after duration seconds
+	task.spawn(function()
+		task.wait(duration)
+		closeNotification()
+	end)
+
+	return notification
+end
+
+-- Create Ping Monitor UI
 local function createPingMonitorUI()
-	-- Создаем фрейм для Ping Monitor
+	-- Create frame for Ping Monitor
 	pingMonitorFrame = Instance.new("Frame")
 	pingMonitorFrame.Name = "PingMonitorFrame"
 	pingMonitorFrame.Size = UDim2.new(0, 150, 0, 80)
@@ -67,19 +206,19 @@ local function createPingMonitorUI()
 	pingMonitorFrame.Visible = false
 	pingMonitorFrame.ZIndex = 100
 	pingMonitorFrame.Parent = screenGui
-	
-	-- UICorner для закругленных углов
+
+	-- UICorner for rounded corners
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = pingMonitorFrame
-	
-	-- UIStroke для рамки
+
+	-- UIStroke for border
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 60)
 	stroke.Thickness = 1
 	stroke.Parent = pingMonitorFrame
-	
-	-- Заголовок
+
+	-- Title
 	local titleLabel = Instance.new("TextLabel")
 	titleLabel.Name = "TitleLabel"
 	titleLabel.Size = UDim2.new(1, 0, 0, 25)
@@ -91,8 +230,8 @@ local function createPingMonitorUI()
 	titleLabel.Font = Enum.Font.GothamBold
 	titleLabel.TextXAlignment = Enum.TextXAlignment.Center
 	titleLabel.Parent = pingMonitorFrame
-	
-	-- Разделитель
+
+	-- Separator
 	local separator = Instance.new("Frame")
 	separator.Name = "Separator"
 	separator.Size = UDim2.new(1, -20, 0, 1)
@@ -100,13 +239,13 @@ local function createPingMonitorUI()
 	separator.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	separator.BorderSizePixel = 0
 	separator.Parent = pingMonitorFrame
-	
-	-- UICorner для разделителя
+
+	-- UICorner for separator
 	local separatorCorner = Instance.new("UICorner")
 	separatorCorner.CornerRadius = UDim.new(0, 0.5)
 	separatorCorner.Parent = separator
-	
-	-- Значение пинга
+
+	-- Ping value
 	pingValueLabel = Instance.new("TextLabel")
 	pingValueLabel.Name = "PingValueLabel"
 	pingValueLabel.Size = UDim2.new(1, 0, 0, 30)
@@ -119,13 +258,13 @@ local function createPingMonitorUI()
 	pingValueLabel.TextXAlignment = Enum.TextXAlignment.Center
 	pingValueLabel.Parent = pingMonitorFrame
 end
--- Создаем Ping Monitor UI
+-- Create Ping Monitor UI
 createPingMonitorUI()
--- Создаём MainFrame (как в оригинале)
+-- Create MainFrame (as in original)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 700, 0, 500)
-mainFrame.Position = UDim2.new(0.5, -350, 0.5, -250)
+mainFrame.Size = UDim2.new(0, 575, 0, 455)
+mainFrame.Position = UDim2.new(0.5, -287.5, 0.5, -227.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
@@ -140,7 +279,7 @@ local mainStroke = Instance.new("UIStroke")
 mainStroke.Color = Colors.Stroke
 mainStroke.Thickness = 1
 mainStroke.Parent = mainFrame
--- Создаём ButtonContainer (как в оригинале)
+-- Create ButtonContainer (as in original)
 local buttonContainer = Instance.new("Frame")
 buttonContainer.Name = "ButtonContainer"
 buttonContainer.Size = UDim2.new(0, 90, 0, 30)
@@ -149,7 +288,7 @@ buttonContainer.BackgroundColor3 = Color3.fromRGB(163, 162, 165)
 buttonContainer.BackgroundTransparency = 1
 buttonContainer.BorderSizePixel = 1
 buttonContainer.Parent = mainFrame
--- Кнопка свернуть (-)
+-- Minimize button (-)
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Name = "MinimizeButton"
 minimizeButton.Size = UDim2.new(0, 25, 0, 25)
@@ -162,11 +301,11 @@ minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 minimizeButton.TextSize = 20
 minimizeButton.Font = Enum.Font.GothamBold
 minimizeButton.Parent = buttonContainer
--- UICorner для кнопки свернуть
+-- UICorner for minimize button
 local minimizeCorner = Instance.new("UICorner")
 minimizeCorner.CornerRadius = UDim.new(0, 6)
 minimizeCorner.Parent = minimizeButton
--- Hover эффект для кнопки свернуть
+-- Hover effect for minimize button
 minimizeButton.MouseEnter:Connect(function()
 	TweenService:Create(minimizeButton, TweenInfo.new(0.2), {
 		BackgroundTransparency = 0.5
@@ -177,7 +316,7 @@ minimizeButton.MouseLeave:Connect(function()
 		BackgroundTransparency = 1
 	}):Play()
 end)
--- Кнопка развернуть/сжать (⛶)
+-- Maximize/Restore button (⛶)
 local maximizeButton = Instance.new("TextButton")
 maximizeButton.Name = "MaximizeButton"
 maximizeButton.Size = UDim2.new(0, 25, 0, 25)
@@ -190,11 +329,11 @@ maximizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 maximizeButton.TextSize = 16
 maximizeButton.Font = Enum.Font.GothamBold
 maximizeButton.Parent = buttonContainer
--- UICorner для кнопки развернуть
+-- UICorner for maximize button
 local maximizeCorner = Instance.new("UICorner")
 maximizeCorner.CornerRadius = UDim.new(0, 6)
 maximizeCorner.Parent = maximizeButton
--- Hover эффект для кнопки развернуть
+-- Hover effect for maximize button
 maximizeButton.MouseEnter:Connect(function()
 	TweenService:Create(maximizeButton, TweenInfo.new(0.2), {
 		BackgroundTransparency = 0.5
@@ -206,7 +345,7 @@ maximizeButton.MouseLeave:Connect(function()
 	}):Play()
 end)
 
--- Кнопка закрыть (×) - как в оригинале
+-- Close button (×) - as in original
 local closeButton = Instance.new("TextButton")
 closeButton.Name = "CloseButton"
 closeButton.Size = UDim2.new(0, 25, 0, 25)
@@ -219,11 +358,11 @@ closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.TextSize = 20
 closeButton.Font = Enum.Font.GothamBold
 closeButton.Parent = buttonContainer
--- UICorner для кнопки закрыть
+-- UICorner for close button
 local closeCorner = Instance.new("UICorner")
 closeCorner.CornerRadius = UDim.new(0, 6)
 closeCorner.Parent = closeButton
--- Hover эффект для кнопки закрыть (как в оригинале)
+-- Hover effect for close button (as in original)
 closeButton.MouseEnter:Connect(function()
 	TweenService:Create(closeButton, TweenInfo.new(0.2), {
 		BackgroundTransparency = 0.5
@@ -234,7 +373,7 @@ closeButton.MouseLeave:Connect(function()
 		BackgroundTransparency = 1
 	}):Play()
 end)
--- Создаём Sidebar (как в оригинале)
+-- Create Sidebar (as in original)
 local sidebar = Instance.new("Frame")
 sidebar.Name = "Sidebar"
 sidebar.Size = UDim2.new(0, 180, 1, 0)
@@ -254,11 +393,11 @@ sidebarPadding.PaddingLeft = UDim.new(0, 10)
 sidebarPadding.PaddingRight = UDim.new(0, 10)
 sidebarPadding.PaddingBottom = UDim.new(0, 10)
 sidebarPadding.Parent = sidebar
--- Декоративная иконка в Sidebar (как в оригинале)
+-- Decorative icon in Sidebar (as in original)
 local decorativeIcon = Instance.new("TextButton")
 decorativeIcon.Name = "DecorativeIcon"
 decorativeIcon.Size = UDim2.new(0, 40, 0, 40)
-decorativeIcon.Position = UDim2.new(0, 5, 0, 5)
+decorativeIcon.Position = UDim2.new(0, 2, 0, 2)
 decorativeIcon.BackgroundColor3 = Color3.fromRGB(163, 162, 165)
 decorativeIcon.BackgroundTransparency = 1
 decorativeIcon.BorderSizePixel = 1
@@ -273,28 +412,28 @@ local decorativeStroke = Instance.new("UIStroke")
 decorativeStroke.Color = Color3.fromRGB(100, 100, 100)
 decorativeStroke.Thickness = 1
 decorativeStroke.Parent = decorativeIcon
--- IconImage внутри DecorativeIcon (как в оригинале)
+-- IconImage inside DecorativeIcon (as in original)
 local decorativeIconImage = Instance.new("ImageLabel")
 decorativeIconImage.Name = "IconImage"
 decorativeIconImage.Size = UDim2.new(1, 0, 1, 0)
 decorativeIconImage.Position = UDim2.new(0, 0, 0, 0)
 decorativeIconImage.BackgroundTransparency = 1
 decorativeIconImage.BorderSizePixel = 0
-decorativeIconImage.Image = "rbxassetid://77552247496328" -- Иконка (как в оригинале)
+decorativeIconImage.Image = "rbxassetid://77552247496328" -- Icon (as in original)
 decorativeIconImage.ScaleType = Enum.ScaleType.Fit
 decorativeIconImage.Parent = decorativeIcon
 -- UICorner для IconImage
 local decorativeImageCorner = Instance.new("UICorner")
 decorativeImageCorner.CornerRadius = UDim.new(0, 8)
 decorativeImageCorner.Parent = decorativeIconImage
--- UIStroke для IconImage (как в оригинале)
+-- UIStroke for IconImage (as in original)
 local decorativeImageStroke = Instance.new("UIStroke")
 decorativeImageStroke.Name = "IconStroke"
 decorativeImageStroke.Color = Color3.fromRGB(251, 255, 255)
 decorativeImageStroke.Thickness = 2.5
 decorativeImageStroke.Transparency = 0
 decorativeImageStroke.Parent = decorativeIconImage
--- Заголовок в Sidebar (как в оригинале)
+-- Title in Sidebar (as in original)
 local title = Instance.new("TextLabel")
 title.Name = "Title"
 title.Size = UDim2.new(1.02352953, -70, 0, 40)
@@ -310,7 +449,7 @@ title.Parent = sidebar
 local titleCorner = Instance.new("UICorner")
 titleCorner.CornerRadius = UDim.new(0, 8)
 titleCorner.Parent = title
--- Создаём ContentArea (как в оригинале)
+-- Create ContentArea (as in original)
 local contentArea = Instance.new("Frame")
 contentArea.Name = "ContentArea"
 contentArea.Size = UDim2.new(1, -180, 1, 0)
@@ -345,8 +484,8 @@ categoryTitle.Size = UDim2.new(1, 0, 0, 30)
 categoryTitle.Position = UDim2.new(0, 0, 0, 0)
 categoryTitle.BackgroundTransparency = 1
 categoryTitle.Text = "Farm"
-categoryTitle.TextColor3 = Colors.Text
-categoryTitle.TextSize = 20
+categoryTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+categoryTitle.TextSize = 16
 categoryTitle.Font = Enum.Font.GothamBold
 categoryTitle.TextXAlignment = Enum.TextXAlignment.Left
 categoryTitle.Parent = contentArea
@@ -354,15 +493,15 @@ categoryTitle.Parent = contentArea
 local categoryTitleCorner = Instance.new("UICorner")
 categoryTitleCorner.CornerRadius = UDim.new(0, 8)
 categoryTitleCorner.Parent = categoryTitle
--- Создаём ScrollFrame
+-- Create ScrollFrame
 local scrollFrame = Instance.new("ScrollingFrame")
 scrollFrame.Name = "ScrollFrame"
 scrollFrame.Size = UDim2.new(1, 0, 1, -40)
 scrollFrame.Position = UDim2.new(0, 0, 0, 40)
 scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
+scrollFrame.ScrollBarThickness = 0 -- Removed scrolling in categories
+scrollFrame.ScrollingEnabled = false -- Disabled scrolling in categories
 scrollFrame.Parent = contentArea
 -- UICorner для ScrollFrame
 local scrollCorner = Instance.new("UICorner")
@@ -371,50 +510,50 @@ scrollCorner.Parent = scrollFrame
 -- UIStroke для ScrollFrame
 local scrollStroke = Instance.new("UIStroke")
 scrollStroke.Color = Colors.Stroke
-scrollStroke.Thickness = 1
+scrollStroke.Thickness = 1 
 scrollStroke.Parent = scrollFrame
 -- UIListLayout для ScrollFrame
 local scrollLayout = Instance.new("UIListLayout")
 scrollLayout.Padding = UDim.new(0, 10)
 scrollLayout.Parent = scrollFrame
 -- Категории
-local categories = {"Farm", "Shop", "Teleport", "☆ Auto Favorite", "Webhook", "Misc", "Settings"}
+local categories = {"Farm", "Shop", "𖦹 Teleport", "☆ Auto Favorite", "Webhook", "🗁 Misc", "ⓘAbout"}
 local categoryButtons = {}
 local categoryFrames = {}
 local currentCategory = "Farm"
--- Функция для создания кнопки категории (как в оригинале)
+-- Function to create category button (as in original)
 local function createCategoryButton(categoryName, index)
 	local button = Instance.new("TextButton")
 	button.Name = categoryName .. "Button"
 	button.Size = UDim2.new(1, -20, 0, 40)
-	button.Position = UDim2.new(0, 5, 0, 40 + (index - 1) * 45)
+	button.Position = UDim2.new(0, 5, 0, 55 + (index - 1) * 45)
 	button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 	button.BackgroundTransparency = 1
 	button.BorderSizePixel = 0
 	button.Text = categoryName
 	button.TextColor3 = Color3.fromRGB(220, 220, 220)
 	button.TextSize = 14
-	button.Font = Enum.Font.Gotham
+	button.Font = Enum.Font.GothamBold
 	button.TextXAlignment = Enum.TextXAlignment.Left
 	button.Parent = sidebar
-	
-	-- UICorner (как в оригинале)
+
+	-- UICorner (as in original)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = button
-	
-	-- UIPadding (как в оригинале)
+
+	-- UIPadding (as in original)
 	local padding = Instance.new("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 15)
 	padding.Parent = button
-	
-	-- UIStroke (как в оригинале)
+
+	-- UIStroke (as in original)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(40, 40, 40)
 	stroke.Thickness = 1
 	stroke.Parent = button
-	
-	-- Hover эффект (как в оригинале)
+
+	-- Hover effect (as in original)
 	button.MouseEnter:Connect(function()
 		if currentCategory ~= categoryName then
 			TweenService:Create(button, TweenInfo.new(0.2), {
@@ -423,7 +562,7 @@ local function createCategoryButton(categoryName, index)
 			}):Play()
 		end
 	end)
-	
+
 	button.MouseLeave:Connect(function()
 		if currentCategory ~= categoryName then
 			TweenService:Create(button, TweenInfo.new(0.2), {
@@ -432,7 +571,7 @@ local function createCategoryButton(categoryName, index)
 			}):Play()
 		end
 	end)
-	
+
 	return button
 end
 -- Функция для создания toggle элемента (как в оригинале)
@@ -446,19 +585,19 @@ local function createToggleElement(parent, featureName, callback)
 	elementFrame.BorderSizePixel = 0
 	elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
 	elementFrame.Parent = parent
-	
-	-- UICorner (как в оригинале)
+
+	-- UICorner (as in original)
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = elementFrame
-	
-	-- UIStroke (как в оригинале)
+
+	-- UIStroke (as in original)
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 60)
 	stroke.Thickness = 1
 	stroke.Parent = elementFrame
-	
-	-- Заголовок (как в оригинале)
+
+	-- Title (as in original)
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.Size = UDim2.new(1, -60, 1, 0)
@@ -467,12 +606,12 @@ local function createToggleElement(parent, featureName, callback)
 	title.Text = featureName
 	title.TextColor3 = Color3.fromRGB(220, 220, 220)
 	title.TextSize = 16
-	title.Font = Enum.Font.Gotham
+	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Parent = elementFrame
-	
-	-- Toggle кнопка (как в оригинале)
+
+	-- Toggle button (as in original)
 	local toggleButton = Instance.new("TextButton")
 	toggleButton.Name = "Toggle"
 	toggleButton.Size = UDim2.new(0, 40, 0, 24)
@@ -484,13 +623,13 @@ local function createToggleElement(parent, featureName, callback)
 	toggleButton.TextSize = 8
 	toggleButton.Font = Enum.Font.FredokaOne
 	toggleButton.Parent = elementFrame
-	
-	-- UICorner для toggle (как в оригинале)
+
+	-- UICorner for toggle (as in original)
 	local toggleCorner = Instance.new("UICorner")
 	toggleCorner.CornerRadius = UDim.new(0, 12)
 	toggleCorner.Parent = toggleButton
-	
-	-- Circle внутри toggle (как в оригинале)
+
+	-- Circle inside toggle (as in original)
 	local circle = Instance.new("Frame")
 	circle.Name = "Circle"
 	circle.Size = UDim2.new(0, 20, 0, 20)
@@ -499,16 +638,16 @@ local function createToggleElement(parent, featureName, callback)
 	circle.BackgroundTransparency = 0
 	circle.BorderSizePixel = 0
 	circle.Parent = toggleButton
-	
-	-- UICorner для circle (как в оригинале)
+
+	-- UICorner for circle (as in original)
 	local circleCorner = Instance.new("UICorner")
 	circleCorner.CornerRadius = UDim.new(0, 10)
 	circleCorner.Parent = circle
-	
+
 	-- Переменная состояния
 	local isToggled = false
-	
-	-- Функция для обновления состояния toggle (как в оригинале)
+
+	-- Function to update toggle state (as in original)
 	local function updateToggle()
 		if isToggled then
 			TweenService:Create(toggleButton, TweenInfo.new(0.2), {
@@ -526,14 +665,14 @@ local function createToggleElement(parent, featureName, callback)
 			}):Play()
 		end
 	end
-	
+
 	-- Click callback
 	toggleButton.MouseButton1Click:Connect(function()
 		isToggled = not isToggled
 		updateToggle()
 		callback(isToggled)
 	end)
-	
+
 	return elementFrame
 end
 -- Функция для создания кнопки с подменю
@@ -548,18 +687,18 @@ local function createMenuButton(parent, featureName, callback)
 	elementButton.BorderColor3 = Color3.fromRGB(60, 60, 60)
 	elementButton.Text = ""
 	elementButton.Parent = parent
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = elementButton
-	
+
 	-- UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 60)
 	stroke.Thickness = 1
 	stroke.Parent = elementButton
-	
+
 	-- Заголовок
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
@@ -569,11 +708,11 @@ local function createMenuButton(parent, featureName, callback)
 	title.Text = featureName
 	title.TextColor3 = Color3.fromRGB(220, 220, 220)
 	title.TextSize = 16
-	title.Font = Enum.Font.Gotham
+	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Parent = elementButton
-	
+
 	-- Стрелка
 	local arrow = Instance.new("TextLabel")
 	arrow.Name = "Arrow"
@@ -587,26 +726,299 @@ local function createMenuButton(parent, featureName, callback)
 	arrow.TextXAlignment = Enum.TextXAlignment.Center
 	arrow.TextYAlignment = Enum.TextYAlignment.Center
 	arrow.Parent = elementButton
-	
+
 	-- Hover эффект
 	elementButton.MouseEnter:Connect(function()
 		TweenService:Create(elementButton, TweenInfo.new(0.2), {
 			BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 		}):Play()
 	end)
-	
+
 	elementButton.MouseLeave:Connect(function()
 		TweenService:Create(elementButton, TweenInfo.new(0.2), {
 			BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		}):Play()
 	end)
-	
+
 	-- Click callback
 	elementButton.MouseButton1Click:Connect(function()
 		callback()
 	end)
-	
+
 	return elementButton
+end
+
+-- Глобальная таблица для отслеживания открытых dropdown
+local openDropdowns = {}
+local allDropdownButtons = {} -- Храним все кнопки dropdown
+
+-- Функция для закрытия всех dropdown
+local function closeAllDropdowns(exceptDropdown)
+	for dropdown, closeFunc in pairs(openDropdowns) do
+		if dropdown ~= exceptDropdown then
+			closeFunc()
+		end
+	end
+end
+
+-- Функция для скрытия всех кнопок dropdown кроме указанной
+local function hideAllDropdownButtons(exceptButton)
+	for _, button in pairs(allDropdownButtons) do
+		if button ~= exceptButton then
+			button.Visible = false
+		end
+	end
+end
+
+-- Функция для показа всех кнопок dropdown
+local function showAllDropdownButtons()
+	for _, button in pairs(allDropdownButtons) do
+		button.Visible = true
+	end
+end
+
+-- Функция для создания выпадающего списка (dropdown)
+local function createDropdownElement(parent, featureName, items, onSelectCallback)
+	local elementFrame = Instance.new("Frame")
+	elementFrame.Name = featureName
+	elementFrame.Size = UDim2.new(0.959, 0, 0, 40)
+	elementFrame.Position = UDim2.new(0.02, 0, 0, 0)
+	elementFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	elementFrame.BackgroundTransparency = 0.5
+	elementFrame.BorderSizePixel = 0
+	elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+	elementFrame.Parent = parent
+
+	-- UICorner
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = elementFrame
+
+	-- UIStroke
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(60, 60, 60)
+	stroke.Thickness = 1
+	stroke.Parent = elementFrame
+
+	-- Заголовок
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(0, 140, 1, 0)
+	title.Position = UDim2.new(0, 15, 0, 0)
+	title.BackgroundTransparency = 1
+	title.Text = featureName
+	title.TextColor3 = Color3.fromRGB(220, 220, 220)
+	title.TextSize = 16
+	title.Font = Enum.Font.GothamBold
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextYAlignment = Enum.TextYAlignment.Center
+	title.Parent = elementFrame
+
+	-- Кнопка выбора (dropdown button)
+	local dropdownButton = Instance.new("TextButton")
+	dropdownButton.Name = "DropdownButton"
+	dropdownButton.Size = UDim2.new(0, 170, 0, 28)
+	dropdownButton.Position = UDim2.new(1, -185, 0.5, -14)
+	dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	dropdownButton.BackgroundTransparency = 0
+	dropdownButton.BorderSizePixel = 0
+	dropdownButton.Text = "--      ▼"
+	dropdownButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+	dropdownButton.TextSize = 12
+	dropdownButton.Font = Enum.Font.GothamBold
+	dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+	dropdownButton.ZIndex = 50 -- Увеличили ZIndex для кнопки
+	dropdownButton.Parent = elementFrame
+
+	-- UICorner для кнопки
+	local btnCorner = Instance.new("UICorner")
+	btnCorner.CornerRadius = UDim.new(0, 6)
+	btnCorner.Parent = dropdownButton
+
+	-- UIPadding для кнопки
+	local btnPadding = Instance.new("UIPadding")
+	btnPadding.PaddingLeft = UDim.new(0, 8)
+	btnPadding.Parent = dropdownButton
+
+	-- Добавляем кнопку в глобальный список
+	table.insert(allDropdownButtons, dropdownButton)
+
+	-- Выпадающий список (dropdown menu)
+	local dropdownMenu = Instance.new("Frame")
+	dropdownMenu.Name = "DropdownMenu"
+	dropdownMenu.Size = UDim2.new(0, 170, 0, 0)
+	dropdownMenu.Position = UDim2.new(1, -185, 1, 15)
+	dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dropdownMenu.BackgroundTransparency = 0.1
+	dropdownMenu.BorderSizePixel = 0
+	dropdownMenu.Visible = false
+	dropdownMenu.ZIndex = 100 -- Увеличили ZIndex чтобы было поверх всего
+	dropdownMenu.Parent = elementFrame
+
+	-- UICorner для меню
+	local menuCorner = Instance.new("UICorner")
+	menuCorner.CornerRadius = UDim.new(0, 6)
+	menuCorner.Parent = dropdownMenu
+
+	-- UIStroke для меню
+	local menuStroke = Instance.new("UIStroke")
+	menuStroke.Color = Color3.fromRGB(80, 80, 80)
+	menuStroke.Thickness = 1
+	menuStroke.Parent = dropdownMenu
+
+	-- ScrollFrame для списка
+	local scrollFrame = Instance.new("ScrollingFrame")
+	scrollFrame.Name = "ScrollFrame"
+	scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+	scrollFrame.Position = UDim2.new(0, 0, 0, 0)
+	scrollFrame.BackgroundTransparency = 1
+	scrollFrame.BorderSizePixel = 0
+	scrollFrame.ScrollBarThickness = 4
+	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 32)
+	scrollFrame.ZIndex = 101 -- Увеличили ZIndex для ScrollFrame
+	scrollFrame.Parent = dropdownMenu
+
+	-- UIListLayout
+	local layout = Instance.new("UIListLayout")
+	layout.Padding = UDim.new(0, 2)
+	layout.Parent = scrollFrame
+
+	-- Переменная состояния
+	local isDropdownOpen = false
+	local selectedItem = nil
+
+	-- Функция для закрытия dropdown
+	local function closeDropdown()
+		isDropdownOpen = false
+		dropdownMenu.Visible = false
+		dropdownMenu.Size = UDim2.new(0, 120, 0, 0)
+		-- Удаляем из списка открытых dropdown
+		openDropdowns[elementFrame] = nil
+		-- Показываем все кнопки dropdown
+		showAllDropdownButtons()
+	end
+
+	-- Функция для открытия dropdown
+	local function openDropdown()
+		-- Проверяем, есть ли уже открытый dropdown
+		local hasOpenDropdown = false
+		for _ in pairs(openDropdowns) do
+			hasOpenDropdown = true
+			break
+		end
+
+		-- Если есть открытый dropdown, не открываем новый
+		if hasOpenDropdown then
+			return
+		end
+
+		isDropdownOpen = true
+		dropdownMenu.Visible = true
+		-- Устанавливаем размер на основе количества элементов
+		local menuHeight = math.min(#items * 32, 270) -- Максимум 270 пикселей высоты
+		dropdownMenu.Size = UDim2.new(0, 170, 0, menuHeight)
+		-- Добавляем в список открытых dropdown
+		openDropdowns[elementFrame] = closeDropdown
+		-- Скрываем все кнопки dropdown кроме текущей
+		hideAllDropdownButtons(dropdownButton)
+	end
+
+	-- Создаем кнопки для каждого элемента
+	for _, item in ipairs(items) do
+		local itemButton = Instance.new("TextButton")
+		itemButton.Name = item.name or tostring(item)
+		itemButton.Size = UDim2.new(1, 0, 0, 30)
+		itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		itemButton.BackgroundTransparency = 0
+		itemButton.BorderSizePixel = 0
+		itemButton.Text = item.name or tostring(item)
+		itemButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+		itemButton.TextSize = 12
+		itemButton.Font = Enum.Font.GothamBold
+		itemButton.TextXAlignment = Enum.TextXAlignment.Left
+		itemButton.ZIndex = 101 -- Увеличили ZIndex для кнопок
+		itemButton.Parent = scrollFrame
+
+		-- UICorner
+		local itemCorner = Instance.new("UICorner")
+		itemCorner.CornerRadius = UDim.new(0, 4)
+		itemCorner.Parent = itemButton
+
+		-- UIPadding
+		local itemPadding = Instance.new("UIPadding")
+		itemPadding.PaddingLeft = UDim.new(0, 8)
+		itemPadding.Parent = itemButton
+
+		-- Hover эффект
+		itemButton.MouseEnter:Connect(function()
+			TweenService:Create(itemButton, TweenInfo.new(0.15), {
+				BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+			}):Play()
+		end)
+
+		itemButton.MouseLeave:Connect(function()
+			TweenService:Create(itemButton, TweenInfo.new(0.15), {
+				BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			}):Play()
+		end)
+
+		-- Click callback
+		itemButton.MouseButton1Click:Connect(function()
+			selectedItem = item
+			dropdownButton.Text = item.name or tostring(item)
+			closeAllDropdowns()
+			if onSelectCallback then
+				onSelectCallback(item)
+			end
+		end)
+	end
+
+	-- Toggle dropdown при клике на кнопку
+	dropdownButton.MouseButton1Click:Connect(function()
+		if isDropdownOpen then
+			closeDropdown()
+		else
+			openDropdown()
+		end
+	end)
+
+	-- Hover эффект для dropdown button
+	dropdownButton.MouseEnter:Connect(function()
+		TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
+			BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		}):Play()
+	end)
+
+	dropdownButton.MouseLeave:Connect(function()
+		TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
+			BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		}):Play()
+	end)
+
+	-- Закрытие при клике вне dropdown
+	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+		if input.UserInputType == Enum.UserInputType.MouseButton1 and isDropdownOpen then
+			local mousePos = input.Position
+			local btnPos = dropdownButton.AbsolutePosition
+			local btnSize = dropdownButton.AbsoluteSize
+			local menuPos = dropdownMenu.AbsolutePosition
+			local menuSize = dropdownMenu.AbsoluteSize
+
+			-- Проверяем, клик ли вне кнопки и меню
+			local clickedOutsideButton = mousePos.X < btnPos.X or mousePos.X > btnPos.X + btnSize.X or
+				mousePos.Y < btnPos.Y or mousePos.Y > btnPos.Y + btnSize.Y
+			local clickedOutsideMenu = mousePos.X < menuPos.X or mousePos.X > menuPos.X + menuSize.X or
+				mousePos.Y < menuPos.Y or mousePos.Y > menuPos.Y + menuSize.Y
+
+			if clickedOutsideButton and clickedOutsideMenu then
+				closeAllDropdowns()
+			end
+		end
+	end)
+
+	return elementFrame
 end
 -- Функция для создания кнопки keybind
 local function createKeybindButton(parent, featureName, callback)
@@ -619,18 +1031,18 @@ local function createKeybindButton(parent, featureName, callback)
 	elementFrame.BorderSizePixel = 0
 	elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
 	elementFrame.Parent = parent
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = elementFrame
-	
+
 	-- UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 60)
 	stroke.Thickness = 1
 	stroke.Parent = elementFrame
-	
+
 	-- Заголовок
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
@@ -640,42 +1052,42 @@ local function createKeybindButton(parent, featureName, callback)
 	title.Text = featureName
 	title.TextColor3 = Color3.fromRGB(220, 220, 220)
 	title.TextSize = 16
-	title.Font = Enum.Font.Gotham
+	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Parent = elementFrame
-	
+
 	-- Кнопка keybind
 	local keybindButton = Instance.new("TextButton")
 	keybindButton.Name = "Keybind"
-	keybindButton.Size = UDim2.new(0, 80, 0, 24)
-	keybindButton.Position = UDim2.new(1, -90, 0.5, -12)
+	keybindButton.Size = UDim2.new(0, 25, 0, 30)
+	keybindButton.Position = UDim2.new(1, -35, 0.5, -15)
 	keybindButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 	keybindButton.BackgroundTransparency = 0
 	keybindButton.BorderSizePixel = 0
-	keybindButton.Text = keybind.Name
+	keybindButton.Text = "..."
 	keybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	keybindButton.TextSize = 12
 	keybindButton.Font = Enum.Font.GothamBold
 	keybindButton.Parent = elementFrame
-	
+
 	-- UICorner для кнопки
 	local btnCorner = Instance.new("UICorner")
 	btnCorner.CornerRadius = UDim.new(0, 6)
 	btnCorner.Parent = keybindButton
-	
+
 	-- Click callback
 	keybindButton.MouseButton1Click:Connect(function()
 		if isChangingKeybind then return end
-		
+
 		isChangingKeybind = true
-		keybindButton.Text = "Press any key..."
-		keybindButton.TextColor3 = Color3.fromRGB(255, 200, 100)
-		
+		keybindButton.Text = "..."
+		keybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+
 		local inputConnection
 		inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if gameProcessed then return end
-			
+
 			if input.KeyCode ~= Enum.KeyCode.Unknown and input.UserInputType == Enum.UserInputType.Keyboard then
 				keybind = input.KeyCode
 				keybindButton.Text = keybind.Name
@@ -686,7 +1098,7 @@ local function createKeybindButton(parent, featureName, callback)
 			end
 		end)
 	end)
-	
+
 	return elementFrame
 end
 -- Функция для создания подменю с телепортами
@@ -702,18 +1114,18 @@ local function createTeleportMenu(parent, locations, title)
 	menuFrame.Visible = false
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = parent
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = menuFrame
-	
+
 	-- UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(80, 80, 80)
 	stroke.Thickness = 1
 	stroke.Parent = menuFrame
-	
+
 	-- Заголовок
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Name = "MenuTitle"
@@ -729,12 +1141,12 @@ local function createTeleportMenu(parent, locations, title)
 	menuTitle.TextXAlignment = Enum.TextXAlignment.Center
 	menuTitle.TextYAlignment = Enum.TextYAlignment.Center
 	menuTitle.Parent = menuFrame
-	
+
 	-- UICorner для заголовка
 	local titleCorner = Instance.new("UICorner")
 	titleCorner.CornerRadius = UDim.new(0, 8)
 	titleCorner.Parent = menuTitle
-	
+
 	-- Кнопка закрыть
 	local closeButton = Instance.new("TextButton")
 	closeButton.Name = "CloseButton"
@@ -743,17 +1155,17 @@ local function createTeleportMenu(parent, locations, title)
 	closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 	closeButton.BackgroundTransparency = 0
 	closeButton.BorderSizePixel = 0
-	closeButton.Text = "×"
+	closeButton.Text = "✕"
 	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeButton.TextSize = 20
 	closeButton.Font = Enum.Font.GothamBold
 	closeButton.Parent = menuFrame
-	
+
 	-- UICorner для кнопки закрыть
 	local closeCorner = Instance.new("UICorner")
 	closeCorner.CornerRadius = UDim.new(0, 6)
 	closeCorner.Parent = closeButton
-	
+
 	-- ScrollFrame для списка
 	local scrollFrame = Instance.new("ScrollingFrame")
 	scrollFrame.Name = "ScrollFrame"
@@ -764,12 +1176,12 @@ local function createTeleportMenu(parent, locations, title)
 	scrollFrame.ScrollBarThickness = 6
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
 	scrollFrame.Parent = menuFrame
-	
+
 	-- UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 5)
 	layout.Parent = scrollFrame
-	
+
 	-- Создаем кнопки для каждой локации
 	for _, location in ipairs(locations) do
 		local button = Instance.new("TextButton")
@@ -781,33 +1193,33 @@ local function createTeleportMenu(parent, locations, title)
 		button.Text = location.name
 		button.TextColor3 = Color3.fromRGB(220, 220, 220)
 		button.TextSize = 14
-		button.Font = Enum.Font.Gotham
+		button.Font = Enum.Font.GothamBold
 		button.TextXAlignment = Enum.TextXAlignment.Left
 		button.Parent = scrollFrame
-		
+
 		-- UICorner
 		local btnCorner = Instance.new("UICorner")
 		btnCorner.CornerRadius = UDim.new(0, 6)
 		btnCorner.Parent = button
-		
+
 		-- UIPadding
 		local btnPadding = Instance.new("UIPadding")
 		btnPadding.PaddingLeft = UDim.new(0, 10)
 		btnPadding.Parent = button
-		
+
 		-- Hover эффект
 		button.MouseEnter:Connect(function()
 			TweenService:Create(button, TweenInfo.new(0.2), {
 				BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 			}):Play()
 		end)
-		
+
 		button.MouseLeave:Connect(function()
 			TweenService:Create(button, TweenInfo.new(0.2), {
 				BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 			}):Play()
 		end)
-		
+
 		-- Teleport callback
 		button.MouseButton1Click:Connect(function()
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -816,30 +1228,30 @@ local function createTeleportMenu(parent, locations, title)
 			menuFrame.Visible = false
 		end)
 	end
-	
+
 	-- Обновляем размер ScrollFrame
 	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #locations * 40)
-	
+
 	-- Кнопка закрыть
 	closeButton.MouseButton1Click:Connect(function()
 		menuFrame.Visible = false
 	end)
-	
+
 	-- Закрытие при клике вне меню
 	local function closeMenuIfClickedOutside(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			local mousePos = input.Position
 			local menuPos = menuFrame.AbsolutePosition
 			local menuSize = menuFrame.AbsoluteSize
-			
+
 			-- Проверяем, клик ли вне меню
 			if mousePos.X < menuPos.X or mousePos.X > menuPos.X + menuSize.X or
-			   mousePos.Y < menuPos.Y or mousePos.Y > menuPos.Y + menuSize.Y then
+				mousePos.Y < menuPos.Y or mousePos.Y > menuPos.Y + menuSize.Y then
 				menuFrame.Visible = false
 			end
 		end
 	end
-	
+
 	-- Подключаем обработчик клика вне меню
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
@@ -847,7 +1259,7 @@ local function createTeleportMenu(parent, locations, title)
 			closeMenuIfClickedOutside(input)
 		end
 	end)
-	
+
 	return menuFrame
 end
 -- Функция для создания меню игроков
@@ -863,18 +1275,18 @@ local function createPlayerMenu(parent)
 	menuFrame.Visible = false
 	menuFrame.ZIndex = 10
 	menuFrame.Parent = parent
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = menuFrame
-	
+
 	-- UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(80, 80, 80)
 	stroke.Thickness = 1
 	stroke.Parent = menuFrame
-	
+
 	-- Заголовок
 	local menuTitle = Instance.new("TextLabel")
 	menuTitle.Name = "MenuTitle"
@@ -890,12 +1302,12 @@ local function createPlayerMenu(parent)
 	menuTitle.TextXAlignment = Enum.TextXAlignment.Center
 	menuTitle.TextYAlignment = Enum.TextYAlignment.Center
 	menuTitle.Parent = menuFrame
-	
+
 	-- UICorner для заголовка
 	local titleCorner = Instance.new("UICorner")
 	titleCorner.CornerRadius = UDim.new(0, 8)
 	titleCorner.Parent = menuTitle
-	
+
 	-- Кнопка закрыть
 	local closeButton = Instance.new("TextButton")
 	closeButton.Name = "CloseButton"
@@ -904,17 +1316,17 @@ local function createPlayerMenu(parent)
 	closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 	closeButton.BackgroundTransparency = 0
 	closeButton.BorderSizePixel = 0
-	closeButton.Text = "×"
+	closeButton.Text = "✕"
 	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	closeButton.TextSize = 20
 	closeButton.Font = Enum.Font.GothamBold
 	closeButton.Parent = menuFrame
-	
+
 	-- UICorner для кнопки закрыть
 	local closeCorner = Instance.new("UICorner")
 	closeCorner.CornerRadius = UDim.new(0, 6)
 	closeCorner.Parent = closeButton
-	
+
 	-- ScrollFrame для списка
 	local scrollFrame = Instance.new("ScrollingFrame")
 	scrollFrame.Name = "ScrollFrame"
@@ -925,12 +1337,12 @@ local function createPlayerMenu(parent)
 	scrollFrame.ScrollBarThickness = 6
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
 	scrollFrame.Parent = menuFrame
-	
+
 	-- UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 5)
 	layout.Parent = scrollFrame
-	
+
 	-- Функция для обновления списка игроков
 	local function updatePlayerList()
 		-- Очищаем старые кнопки
@@ -939,10 +1351,10 @@ local function createPlayerMenu(parent)
 				child:Destroy()
 			end
 		end
-		
+
 		-- Получаем всех игроков
 		local playersList = Players:GetPlayers()
-		
+
 		-- Создаем кнопки для каждого игрока
 		for _, targetPlayer in ipairs(playersList) do
 			if targetPlayer ~= LocalPlayer then -- Не показываем себя
@@ -955,33 +1367,33 @@ local function createPlayerMenu(parent)
 				button.Text = targetPlayer.Name
 				button.TextColor3 = Color3.fromRGB(220, 220, 220)
 				button.TextSize = 14
-				button.Font = Enum.Font.Gotham
+				button.Font = Enum.Font.GothamBold
 				button.TextXAlignment = Enum.TextXAlignment.Left
 				button.Parent = scrollFrame
-				
+
 				-- UICorner
 				local btnCorner = Instance.new("UICorner")
 				btnCorner.CornerRadius = UDim.new(0, 6)
 				btnCorner.Parent = button
-				
+
 				-- UIPadding
 				local btnPadding = Instance.new("UIPadding")
 				btnPadding.PaddingLeft = UDim.new(0, 10)
 				btnPadding.Parent = button
-				
+
 				-- Hover эффект
 				button.MouseEnter:Connect(function()
 					TweenService:Create(button, TweenInfo.new(0.2), {
 						BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 					}):Play()
 				end)
-				
+
 				button.MouseLeave:Connect(function()
 					TweenService:Create(button, TweenInfo.new(0.2), {
 						BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 					}):Play()
 				end)
-				
+
 				-- Teleport callback
 				button.MouseButton1Click:Connect(function()
 					if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -991,23 +1403,23 @@ local function createPlayerMenu(parent)
 				end)
 			end
 		end
-		
+
 		-- Обновляем размер ScrollFrame
 		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 40)
 	end
-	
+
 	-- Кнопка закрыть
 	closeButton.MouseButton1Click:Connect(function()
 		menuFrame.Visible = false
 	end)
-	
+
 	-- Обновляем список при открытии
 	menuFrame:GetPropertyChangedSignal("Visible"):Connect(function()
 		if menuFrame.Visible then
 			updatePlayerList()
 		end
 	end)
-	
+
 	return menuFrame
 end
 -- Функция для создания slider элемента
@@ -1021,18 +1433,18 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	elementFrame.BorderSizePixel = 0
 	elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
 	elementFrame.Parent = parent
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = elementFrame
-	
+
 	-- UIStroke
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(60, 60, 60)
 	stroke.Thickness = 1
 	stroke.Parent = elementFrame
-	
+
 	-- Заголовок
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
@@ -1042,11 +1454,11 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	title.Text = featureName
 	title.TextColor3 = Color3.fromRGB(220, 220, 220)
 	title.TextSize = 16
-	title.Font = Enum.Font.Gotham
+	title.Font = Enum.Font.GothamBold
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Parent = elementFrame
-	
+
 	-- Значение
 	local valueLabel = Instance.new("TextLabel")
 	valueLabel.Name = "ValueLabel"
@@ -1059,7 +1471,7 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	valueLabel.Font = Enum.Font.GothamBold
 	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
 	valueLabel.Parent = elementFrame
-	
+
 	-- Slider track
 	local sliderTrack = Instance.new("ImageButton")
 	sliderTrack.Name = "SliderTrack"
@@ -1069,12 +1481,12 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	sliderTrack.BorderSizePixel = 0
 	sliderTrack.Image = ""
 	sliderTrack.Parent = elementFrame
-	
+
 	-- UICorner для track
 	local trackCorner = Instance.new("UICorner")
 	trackCorner.CornerRadius = UDim.new(0, 4)
 	trackCorner.Parent = sliderTrack
-	
+
 	-- Slider fill
 	local sliderFill = Instance.new("Frame")
 	sliderFill.Name = "SliderFill"
@@ -1082,12 +1494,12 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	sliderFill.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
 	sliderFill.BorderSizePixel = 0
 	sliderFill.Parent = sliderTrack
-	
+
 	-- UICorner для fill
 	local fillCorner = Instance.new("UICorner")
 	fillCorner.CornerRadius = UDim.new(0, 4)
 	fillCorner.Parent = sliderFill
-	
+
 	-- Slider knob
 	local sliderKnob = Instance.new("ImageButton")
 	sliderKnob.Name = "SliderKnob"
@@ -1097,66 +1509,80 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	sliderKnob.BorderSizePixel = 0
 	sliderKnob.Image = ""
 	sliderKnob.Parent = sliderTrack
-	
+
 	-- UICorner для knob
 	local knobCorner = Instance.new("UICorner")
 	knobCorner.CornerRadius = UDim.new(0, 8)
 	knobCorner.Parent = sliderKnob
-	
+
 	-- Переменная состояния
 	local currentValue = defaultValue
 	local isDragging = false
-	
+	local renderConnection = nil
+	local releaseConnection = nil
+
 	-- Функция для обновления slider
-	local function updateSlider(input)
-		local mousePos = input.Position.X
+	local function updateSlider(mouseX)
 		local trackPos = sliderTrack.AbsolutePosition.X
 		local trackSize = sliderTrack.AbsoluteSize.X
-		local relativePos = math.clamp((mousePos - trackPos) / trackSize, 0, 1)
-		
+		local relativePos = math.clamp((mouseX - trackPos) / trackSize, 0, 1)
+
 		currentValue = math.floor(minValue + relativePos * (maxValue - minValue))
 		valueLabel.Text = tostring(currentValue)
 		sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
 		sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
-		
+
 		callback(currentValue)
 		return relativePos
 	end
-	
+
+	-- Функция для начала перетаскивания
+	local function startDrag()
+		isDragging = true
+		
+		-- Используем RenderStepped для плавного обновления
+		renderConnection = RunService.RenderStepped:Connect(function()
+			if isDragging then
+				local mousePos = UserInputService:GetMouseLocation()
+				updateSlider(mousePos.X)
+			end
+		end)
+		
+		-- Создаем обработчик отпускания кнопки только для этого ползунка
+		releaseConnection = UserInputService.InputEnded:Connect(function(input, gameProcessed)
+			if gameProcessed then return end
+			if input.UserInputType == Enum.UserInputType.MouseButton1 and isDragging then
+				isDragging = false
+				if renderConnection then
+					renderConnection:Disconnect()
+					renderConnection = nil
+				end
+				if releaseConnection then
+					releaseConnection:Disconnect()
+					releaseConnection = nil
+				end
+			end
+		end)
+	end
+
 	-- Mouse events
 	sliderKnob.MouseButton1Down:Connect(function()
-		isDragging = true
+		startDrag()
 	end)
-	
-	sliderTrack.MouseButton1Down:Connect(function(input)
-		isDragging = true
-		updateSlider(input)
+
+	sliderTrack.MouseButton1Down:Connect(function()
+		local mousePos = UserInputService:GetMouseLocation()
+		updateSlider(mousePos.X)
+		startDrag()
 	end)
-	
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 and isDragging then
-			updateSlider(input)
-		end
-	end)
-	
-	UserInputService.InputChanged:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.UserInputType == Enum.UserInputType.MouseMovement and isDragging then
-			updateSlider(input)
-		end
-	end)
-	
-	UserInputService.InputEnded:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			isDragging = false
-		end
-	end)
-	
+
 	-- Инициализация ползунка
-	updateSlider({Position = Vector2.new(sliderTrack.AbsolutePosition.X + (defaultValue - minValue) / (maxValue - minValue) * sliderTrack.AbsoluteSize.X, 0)})
-	
+	local initialRelativePos = (defaultValue - minValue) / (maxValue - minValue)
+	currentValue = defaultValue
+	valueLabel.Text = tostring(currentValue)
+	sliderFill.Size = UDim2.new(initialRelativePos, 0, 1, 0)
+	sliderKnob.Position = UDim2.new(initialRelativePos, -8, 0.5, -8)
+
 	return elementFrame
 end
 local function createCategoryFrame(categoryName)
@@ -1168,12 +1594,12 @@ local function createCategoryFrame(categoryName)
 	frame.BorderSizePixel = 0
 	frame.Visible = false
 	frame.Parent = scrollFrame
-	
+
 	-- UICorner
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = frame
-	
+
 	-- UIPadding
 	local padding = Instance.new("UIPadding")
 	padding.PaddingTop = UDim.new(0, 10)
@@ -1181,32 +1607,32 @@ local function createCategoryFrame(categoryName)
 	padding.PaddingRight = UDim.new(0, 10)
 	padding.PaddingBottom = UDim.new(0, 10)
 	padding.Parent = frame
-	
+
 	-- UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 10)
 	layout.Parent = frame
-	
+
 	-- Добавляем toggle элементы в зависимости от категории
 	if categoryName == "Farm" then
 		createToggleElement(frame, "Auto Fish", function(isToggled)
 			-- Auto Fish functionality
 			print("Auto Fish:", isToggled)
 		end)
-		
+
 		createToggleElement(frame, "Auto Reel", function(isToggled)
 			-- Auto Reel functionality
 			print("Auto Reel:", isToggled)
 		end)
-		
+
 		createToggleElement(frame, "Auto Cast", function(isToggled)
 			-- Auto Cast functionality
 			print("Auto Cast:", isToggled)
 		end)
-		
+
 	elseif categoryName == "Shop" then
-		
-	elseif categoryName == "Teleport" then
+
+	elseif categoryName == "𖦹 Teleport" then
 		-- Локации для телепортации
 		local locations = {
 			{["name"] = "Fisherman Island", ["pos"] = Vector3.new(34.2641716003418, 9.628792762756348, 2803.64599609375)},
@@ -1219,7 +1645,7 @@ local function createCategoryFrame(categoryName)
 			{["name"] = "Crater Island", ["pos"] = Vector3.new(986.1216430664062, 30.208383560180664, 4952.654296875)},
 			{["name"] = "Pirate Cove", ["pos"] = Vector3.new(3358.006591796875, 4.192970275878906, 3519.951171875)},
 			{["name"] = "Pirate Treasure Room", ["pos"] = Vector3.new(3302.267333984375, -299.5013122558594, 3016.651123046875)},
-			{["name"] = "Leviathans Lair", ["pos"] = Vector3.new(3473.525146484375, -287.84320068359375, 3474.171630859375)},
+			{["name"] = "Leviathan's Lair", ["pos"] = Vector3.new(3473.525146484375, -287.84320068359375, 3474.171630859375)},
 			{["name"] = "Crystal Depths", ["pos"] = Vector3.new(5686.9443359375, -891.0681762695312, 15294.7333984375)},
 			{["name"] = "Esoteric Depths", ["pos"] = Vector3.new(3193.7265625, -1302.7301025390625, 1420.59814453125)},
 			{["name"] = "Kohana", ["pos"] = Vector3.new(-643.0057373046875, 16.030197143554688, 615.0732421875)},
@@ -1232,53 +1658,334 @@ local function createCategoryFrame(categoryName)
 			{["name"] = "Sisiphys Statue", ["pos"] = Vector3.new(-3698.338623046875, -135.57444763183594, -1026.4268798828125)},
 			{["name"] = "Underground Cellar", ["pos"] = Vector3.new(2135.52490234375, -91.19860076904297, -699.4429931640625)}
 		}
-		
-		-- Создаем меню телепортации на острова
-		local islandMenu = createTeleportMenu(frame, locations, "Teleport to Island")
-		
-		-- Кнопка Teleport to Island
-		createMenuButton(frame, "Teleport to Island", function()
-			islandMenu.Visible = true
+
+		-- Dropdown для Teleport to Island
+		createDropdownElement(frame, "Teleport to Island", locations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
 		end)
-		
-		-- Создаем меню игроков
-		local playerMenu = createPlayerMenu(frame)
-		
-		-- Кнопка Teleport to Player
-		createMenuButton(frame, "Teleport to Player", function()
-			playerMenu.Visible = true
+
+		-- Функция для создания dropdown с динамическим обновлением списка игроков
+		local function createPlayerDropdown(parent, featureName, onSelectCallback)
+			local elementFrame = Instance.new("Frame")
+			elementFrame.Name = featureName
+			elementFrame.Size = UDim2.new(0.959, 0, 0, 40)
+			elementFrame.Position = UDim2.new(0.02, 0, 0, 0)
+			elementFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			elementFrame.BackgroundTransparency = 0.5
+			elementFrame.BorderSizePixel = 0
+			elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+			elementFrame.Parent = parent
+
+			-- UICorner
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0, 8)
+			corner.Parent = elementFrame
+
+			-- UIStroke
+			local stroke = Instance.new("UIStroke")
+			stroke.Color = Color3.fromRGB(60, 60, 60)
+			stroke.Thickness = 1
+			stroke.Parent = elementFrame
+
+			-- Заголовок
+			local title = Instance.new("TextLabel")
+			title.Name = "Title"
+			title.Size = UDim2.new(0, 140, 1, 0)
+			title.Position = UDim2.new(0, 15, 0, 0)
+			title.BackgroundTransparency = 1
+			title.Text = featureName
+			title.TextColor3 = Color3.fromRGB(220, 220, 220)
+			title.TextSize = 16
+			title.Font = Enum.Font.Gotham
+			title.TextXAlignment = Enum.TextXAlignment.Left
+			title.TextYAlignment = Enum.TextYAlignment.Center
+			title.Parent = elementFrame
+
+			-- Кнопка выбора (dropdown button)
+			local dropdownButton = Instance.new("TextButton")
+			dropdownButton.Name = "DropdownButton"
+			dropdownButton.Size = UDim2.new(0, 170, 0, 28)
+			dropdownButton.Position = UDim2.new(1, -185, 0.5, -14)
+			dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			dropdownButton.BackgroundTransparency = 0
+			dropdownButton.BorderSizePixel = 0
+			dropdownButton.Text = "--      ▼"
+			dropdownButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+			dropdownButton.TextSize = 12
+			dropdownButton.Font = Enum.Font.GothamBold
+			dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+			dropdownButton.ZIndex = 50
+			dropdownButton.Parent = elementFrame
+
+			-- UICorner для кнопки
+			local btnCorner = Instance.new("UICorner")
+			btnCorner.CornerRadius = UDim.new(0, 6)
+			btnCorner.Parent = dropdownButton
+
+			-- UIPadding для кнопки
+			local btnPadding = Instance.new("UIPadding")
+			btnPadding.PaddingLeft = UDim.new(0, 8)
+			btnPadding.Parent = dropdownButton
+
+			-- Добавляем кнопку в глобальный список
+			table.insert(allDropdownButtons, dropdownButton)
+
+			-- Выпадающий список (dropdown menu)
+			local dropdownMenu = Instance.new("Frame")
+			dropdownMenu.Name = "DropdownMenu"
+			dropdownMenu.Size = UDim2.new(0, 170, 0, 0)
+			dropdownMenu.Position = UDim2.new(1, -185, 1, 15)
+			dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			dropdownMenu.BackgroundTransparency = 0.1
+			dropdownMenu.BorderSizePixel = 0
+			dropdownMenu.Visible = false
+			dropdownMenu.ZIndex = 100
+			dropdownMenu.Parent = elementFrame
+
+			-- UICorner для меню
+			local menuCorner = Instance.new("UICorner")
+			menuCorner.CornerRadius = UDim.new(0, 6)
+			menuCorner.Parent = dropdownMenu
+
+			-- UIStroke для меню
+			local menuStroke = Instance.new("UIStroke")
+			menuStroke.Color = Color3.fromRGB(80, 80, 80)
+			menuStroke.Thickness = 1
+			menuStroke.Parent = dropdownMenu
+
+			-- ScrollFrame для списка
+			local scrollFrame = Instance.new("ScrollingFrame")
+			scrollFrame.Name = "ScrollFrame"
+			scrollFrame.Size = UDim2.new(1, 0, 1, 0)
+			scrollFrame.Position = UDim2.new(0, 0, 0, 0)
+			scrollFrame.BackgroundTransparency = 1
+			scrollFrame.BorderSizePixel = 0
+			scrollFrame.ScrollBarThickness = 4
+			scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
+			scrollFrame.ZIndex = 101
+			scrollFrame.Parent = dropdownMenu
+
+			-- UIListLayout
+			local layout = Instance.new("UIListLayout")
+			layout.Padding = UDim.new(0, 2)
+			layout.Parent = scrollFrame
+
+			-- Переменная состояния
+			local isDropdownOpen = false
+			local selectedItem = nil
+			local playerButtons = {} -- Храним кнопки игроков
+
+			-- Функция для закрытия dropdown (определена заранее)
+			local function closeDropdown()
+				isDropdownOpen = false
+				dropdownMenu.Visible = false
+				dropdownMenu.Size = UDim2.new(0, 120, 0, 0)
+				openDropdowns[elementFrame] = nil
+				showAllDropdownButtons()
+				dropdownButton.Visible = true -- Явно показываем кнопку
+			end
+
+			-- Функция для получения списка игроков
+			local function getPlayerList()
+				local playersList = {}
+				for _, player in Players:GetPlayers() do
+					if player ~= LocalPlayer then
+						table.insert(playersList, {name = player.Name, player = player})
+					end
+				end
+				return playersList
+			end
+
+			-- Функция для обновления списка игроков в dropdown
+			local function updatePlayerDropdown()
+				-- Очищаем старые кнопки
+				for button, _ in pairs(playerButtons) do
+					if button and typeof(button) == "Instance" then
+						button:Destroy()
+					end
+				end
+				playerButtons = {}
+
+				-- Получаем актуальный список игроков
+				local playersList = getPlayerList()
+
+				-- Создаем кнопки для каждого игрока
+				for _, item in ipairs(playersList) do
+					local itemButton = Instance.new("TextButton")
+					itemButton.Name = item.name
+					itemButton.Size = UDim2.new(1, 0, 0, 30)
+					itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+					itemButton.BackgroundTransparency = 0
+					itemButton.BorderSizePixel = 0
+					itemButton.Text = item.name
+					itemButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+					itemButton.TextSize = 12
+					itemButton.Font = Enum.Font.GothamBold
+					itemButton.TextXAlignment = Enum.TextXAlignment.Left
+					itemButton.ZIndex = 101
+					itemButton.Parent = scrollFrame
+
+					-- UICorner
+					local itemCorner = Instance.new("UICorner")
+					itemCorner.CornerRadius = UDim.new(0, 4)
+					itemCorner.Parent = itemButton
+
+					-- UIPadding
+					local itemPadding = Instance.new("UIPadding")
+					itemPadding.PaddingLeft = UDim.new(0, 8)
+					itemPadding.Parent = itemButton
+
+					-- Hover эффект
+					itemButton.MouseEnter:Connect(function()
+						TweenService:Create(itemButton, TweenInfo.new(0.15), {
+							BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+						}):Play()
+					end)
+
+					itemButton.MouseLeave:Connect(function()
+						TweenService:Create(itemButton, TweenInfo.new(0.15), {
+							BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+						}):Play()
+					end)
+
+					-- Click callback
+					itemButton.MouseButton1Click:Connect(function()
+						selectedItem = item
+						dropdownButton.Text = item.name
+						-- Закрываем только текущий dropdown
+						closeDropdown()
+						if onSelectCallback then
+							onSelectCallback(item)
+						end
+					end)
+
+					-- Сохраняем кнопку
+					playerButtons[itemButton] = true
+				end
+
+				-- Обновляем размер ScrollFrame
+				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 32)
+			end
+
+			-- Функция для открытия dropdown
+			local function openDropdown()
+				-- Проверяем, есть ли уже открытый dropdown
+				local hasOpenDropdown = false
+				for _ in pairs(openDropdowns) do
+					hasOpenDropdown = true
+					break
+				end
+
+				-- Если есть открытый dropdown, не открываем новый
+				if hasOpenDropdown then
+					return
+				end
+
+				-- Обновляем список игроков перед открытием
+				updatePlayerDropdown()
+
+				isDropdownOpen = true
+				dropdownMenu.Visible = true
+				-- Устанавливаем размер на основе количества элементов
+				local playersList = getPlayerList()
+				local menuHeight = math.min(#playersList * 32, 270)
+				dropdownMenu.Size = UDim2.new(0, 170, 0, menuHeight)
+				openDropdowns[elementFrame] = closeDropdown
+				-- Не скрываем кнопку при открытии dropdown
+				-- hideAllDropdownButtons(dropdownButton)
+			end
+
+			-- Toggle dropdown при клике на кнопку
+			dropdownButton.MouseButton1Click:Connect(function()
+				if isDropdownOpen then
+					closeDropdown()
+				else
+					openDropdown()
+				end
+			end)
+
+			-- Убеждаемся, что кнопка видна при инициализации
+			dropdownButton.Visible = true
+
+			-- Hover эффект для dropdown button
+			dropdownButton.MouseEnter:Connect(function()
+				TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
+					BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				}):Play()
+			end)
+
+			dropdownButton.MouseLeave:Connect(function()
+				TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
+					BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+				}):Play()
+			end)
+
+			-- Закрытие при клике вне dropdown
+			UserInputService.InputBegan:Connect(function(input, gameProcessed)
+				if gameProcessed then return end
+				if input.UserInputType == Enum.UserInputType.MouseButton1 and isDropdownOpen then
+					local mousePos = input.Position
+					local btnPos = dropdownButton.AbsolutePosition
+					local btnSize = dropdownButton.AbsoluteSize
+					local menuPos = dropdownMenu.AbsolutePosition
+					local menuSize = dropdownMenu.AbsoluteSize
+
+					-- Проверяем, клик ли вне кнопки и меню
+					local clickedOutsideButton = mousePos.X < btnPos.X or mousePos.X > btnPos.X + btnSize.X or
+						mousePos.Y < btnPos.Y or mousePos.Y > btnPos.Y + btnSize.Y
+					local clickedOutsideMenu = mousePos.X < menuPos.X or mousePos.X > menuPos.X + menuSize.X or
+						mousePos.Y < menuPos.Y or mousePos.Y > menuPos.Y + menuSize.Y
+
+					if clickedOutsideButton and clickedOutsideMenu then
+						closeAllDropdowns()
+					end
+				end
+			end)
+
+			return elementFrame
+		end
+
+		-- Dropdown для Teleport to Player с динамическим обновлением
+		createPlayerDropdown(frame, "Teleport to Player", function(selectedPlayer)
+			if selectedPlayer.player and selectedPlayer.player.Character and selectedPlayer.player.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = selectedPlayer.player.Character.HumanoidRootPart.CFrame
+			end
 		end)
-		
+
 	elseif categoryName == "☆ Auto Favorite" then
 		createToggleElement(frame, "Auto Favorite All", function(isToggled)
-					end)
+		end)
 		createToggleElement(frame, "Auto Favorite Rare", function(isToggled)
-					end)
-		
+		end)
+
 	elseif categoryName == "Webhook" then
 		createToggleElement(frame, "Send Webhook", function(isToggled)
-					end)
+		end)
 		createToggleElement(frame, "Auto Webhook", function(isToggled)
-					end)
-		
-	elseif categoryName == "Misc" then
+		end)
+
+	elseif categoryName == "🗁 Misc" then
 		-- Noclip (вкл/выкл)
 		createToggleElement(frame, "Noclip", function(isToggled)
-						noclipEnabled = isToggled
+			noclipEnabled = isToggled
+			showNotification("ⓘInformation", "NoClip: " .. (isToggled and "ON" or "OFF"))
 		end)
-		
+
 		-- Speed (ползунок от 16 до 200)
-		createSliderElement(frame, "Speed", 16, 200, 16, function(value)
+		createSliderElement(frame, "Walk Speed", 16, 200, 16, function(value)
 			currentSpeed = value
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 				LocalPlayer.Character.Humanoid.WalkSpeed = value
 			end
 		end)
-		
+
 		-- Airwalk (вкл/выкл)
 		createToggleElement(frame, "Airwalk", function(isToggled)
-						airwalkEnabled = isToggled
-			
+			airwalkEnabled = isToggled
+			showNotification("ⓘInformation", "Airwalk: " .. (isToggled and "ON" or "OFF"))
+
 			if isToggled then
 				-- Создаем невидимую платформу
 				airwalkPart = Instance.new("Part")
@@ -1288,7 +1995,7 @@ local function createCategoryFrame(categoryName)
 				airwalkPart.CanCollide = true
 				airwalkPart.Anchored = true
 				airwalkPart.Parent = workspace
-				
+
 				-- Обновляем позицию платформы
 				airwalkConnection = RunService.RenderStepped:Connect(function()
 					if airwalkEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1309,53 +2016,130 @@ local function createCategoryFrame(categoryName)
 				end
 			end
 		end)
-		
+
 		-- Jump (ползунок от 50 до 200)
-		createSliderElement(frame, "Jump", 50, 200, 50, function(value)
+		createSliderElement(frame, "Walk Jump", 50, 200, 50, function(value)
 			currentJump = value
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 				LocalPlayer.Character.Humanoid.JumpPower = value
 			end
 		end)
-		
+
 		-- InfinityJump (вкл/выкл)
 		createToggleElement(frame, "InfinityJump", function(isToggled)
-						infiniteJumpEnabled = isToggled
+			infiniteJumpEnabled = isToggled
+			showNotification("ⓘInformation", "InfinityJump: " .. (isToggled and "ON" or "OFF"))
 		end)
-		
-	elseif categoryName == "Settings" then
-		-- Keybind кнопка
+
+		-- KeyBind (клавиша для открытия меню)
 		createKeybindButton(frame, "Keybind", function(newKeybind)
-					end)
-		
-		-- Ping Monitor toggle
-		createToggleElement(frame, "Ping Monitor", function(isToggled)
-			isPingMonitorEnabled = isToggled
-						
-			if pingMonitorFrame then
-				pingMonitorFrame.Visible = isToggled
+			showNotification("ⓘInformation", "Keybind changed to: " .. newKeybind.Name)
+		end)
+
+
+
+	elseif categoryName == "ⓘAbout" then
+
+		-- Функция для копирования текста в буфер обмена
+		local function copyToClipboard(text)
+			-- Метод 1: GuiService:CopyToClipboard (новый метод)
+			local success = pcall(function()
+				GuiService:CopyToClipboard(text)
+			end)
+
+			if success then
+				task.wait(0.05)
+				local clipboardText = UserInputService:ClipboardGet()
+				print("Method 1 (GuiService) - Expected:", text, "Got:", clipboardText)
+				if clipboardText == text then
+					return true
+				end
+			end
+
+			-- Метод 2: StarterGui:SetCore
+			success = pcall(function()
+				StarterGui:SetCore("ClipboardToSet", text)
+			end)
+
+			if success then
+				task.wait(0.05)
+				local clipboardText = UserInputService:ClipboardGet()
+				print("Method 2 (SetCore) - Expected:", text, "Got:", clipboardText)
+				if clipboardText == text then
+					return true
+				end
+			end
+
+			-- Метод 3: UserInputService:ClipboardSet
+			success = pcall(function()
+				UserInputService:ClipboardSet(text)
+			end)
+
+			if success then
+				task.wait(0.05)
+				local clipboardText = UserInputService:ClipboardGet()
+				print("Method 3 (ClipboardSet) - Expected:", text, "Got:", clipboardText)
+				if clipboardText == text then
+					return true
+				end
+			end
+
+			print("All clipboard methods failed")
+			return false
+		end
+
+		-- Discord
+		createMenuButton(frame, "Copy Discord Link", function()
+			local link = "https://discord.gg/FTKr8QqGUC"
+			print("Attempting to copy Discord link...")
+			if copyToClipboard(link) then
+				print("Discord link copied successfully!")
+				showNotification("ⓘInformation", "Discord link copied!")
+			else
+				print("Failed to copy Discord link")
+				-- Показываем ссылку в уведомлении как запасной вариант
+				showNotification("ⓘLink", link)
 			end
 		end)
-		
-		-- Potato Graphics toggle
-		createToggleElement(frame, "Potato Graphics", function(isToggled)
-			isPotatoGraphicsEnabled = isToggled
-						
-			if isPotatoGraphicsEnabled then
-				task.spawn(enablePotatoGraphics)
+
+		-- YouTube
+		createMenuButton(frame, "Copy YouTube Link", function()
+			local link = "https://www.youtube.com/@theharatio"
+			if copyToClipboard(link) then
+				showNotification("ⓘInformation", "YouTube link copied!")
 			else
-				task.spawn(disablePotatoGraphics)
+				showNotification("ⓘLink", link)
+			end
+		end)
+
+		-- Twitch
+		createMenuButton(frame, "Copy Twitch Link", function()
+			local link = "https://www.twitch.tv/theharatioharada"
+			if copyToClipboard(link) then
+				showNotification("ⓘInformation", "Twitch link copied!")
+			else
+				showNotification("ⓘLink", link)
+			end
+		end)
+
+		-- Donation
+		createMenuButton(frame, "Copy Donation Link", function()
+			local link = "https://www.donationalerts.com/r/haratio_harada"
+			if copyToClipboard(link) then
+				showNotification("ⓘInformation", "Donation link copied!")
+			else
+				showNotification("ⓘLink", link)
 			end
 		end)
 	end
-	
+
 	return frame
 end
--- Potato Graphics функции
+-- Potato Graphics functions
 local function enablePotatoGraphics()
 	local Lighting = game:GetService("Lighting")
 	local Workspace = game:GetService("Workspace")
-	
+
 	pcall(function()
 		Lighting.GlobalShadows = false
 		Lighting.FogEnd = 1e9
@@ -1365,16 +2149,16 @@ local function enablePotatoGraphics()
 		Lighting.EnvironmentDiffuseScale = 0
 		Lighting.EnvironmentSpecularScale = 0
 	end)
-	
+
 	for _,v in ipairs(Lighting:GetChildren()) do
 		if v:IsA("PostEffect") or v:IsA("Atmosphere") or v:IsA("Sky") then
 			v:Destroy()
 		end
 	end
-	
+
 	local sky = Instance.new("Sky")
 	local SKY_ID = "rbxassetid://79747281250125"
-	
+
 	sky.SkyboxBk = SKY_ID
 	sky.SkyboxDn = SKY_ID
 	sky.SkyboxFt = SKY_ID
@@ -1385,25 +2169,25 @@ local function enablePotatoGraphics()
 	sky.MoonAngularSize = 0
 	sky.StarCount = 0
 	sky.Parent = Lighting
-	
+
 	local function removeEffect(obj)
 		if obj:IsA("ParticleEmitter")
-		or obj:IsA("Trail")
-		or obj:IsA("Beam")
-		or obj:IsA("Explosion")
-		or obj:IsA("Smoke")
-		or obj:IsA("Fire") then
+			or obj:IsA("Trail")
+			or obj:IsA("Beam")
+			or obj:IsA("Explosion")
+			or obj:IsA("Smoke")
+			or obj:IsA("Fire") then
 			obj:Destroy()
 		end
 	end
-	
+
 	local function cleanPart(part)
 		part.CastShadow = false
 		part.Reflectance = 0
 		part.Material = Enum.Material.Plastic
 		part.Color = Color3.fromRGB(150,150,150)
 	end
-	
+
 	for _,obj in ipairs(Workspace:GetDescendants()) do
 		if obj:IsA("BasePart") then
 			cleanPart(obj)
@@ -1413,7 +2197,7 @@ local function enablePotatoGraphics()
 			removeEffect(obj)
 		end
 	end
-	
+
 	Workspace.DescendantAdded:Connect(function(obj)
 		if obj:IsA("BasePart") then
 			task.wait()
@@ -1424,12 +2208,12 @@ local function enablePotatoGraphics()
 			removeEffect(obj)
 		end
 	end)
-	
+
 	local function cleanCharacter(char)
 		for _,v in ipairs(char:GetDescendants()) do
 			if v:IsA("Shirt")
-			or v:IsA("Pants")
-			or v:IsA("ShirtGraphic") then
+				or v:IsA("Pants")
+				or v:IsA("ShirtGraphic") then
 				v:Destroy()
 			elseif v:IsA("Decal") and v.Name == "face" then
 				v:Destroy()
@@ -1443,26 +2227,26 @@ local function enablePotatoGraphics()
 			end
 		end
 	end
-	
+
 	for _,plr in ipairs(Players:GetPlayers()) do
 		if plr.Character then
 			cleanCharacter(plr.Character)
 		end
 		plr.CharacterAdded:Connect(cleanCharacter)
 	end
-	
+
 	for _,model in ipairs(Workspace:GetDescendants()) do
 		if model:IsA("Model") and model:FindFirstChildWhichIsA("Humanoid") then
 			cleanCharacter(model)
 		end
 	end
-	
+
 	settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
 end
 local function disablePotatoGraphics()
-	-- Сбрасываем настройки на значения по умолчанию
+	-- Reset settings to default values
 	local Lighting = game:GetService("Lighting")
-	
+
 	pcall(function()
 		Lighting.GlobalShadows = true
 		Lighting.FogEnd = 100000
@@ -1472,24 +2256,24 @@ local function disablePotatoGraphics()
 		Lighting.EnvironmentDiffuseScale = 1
 		Lighting.EnvironmentSpecularScale = 1
 	end)
-	
+
 	settings().Rendering.QualityLevel = Enum.QualityLevel.Automatic
 end
--- Создаём все категории
+-- Create all categories
 for i, category in ipairs(categories) do
 	local button = createCategoryButton(category, i)
 	categoryButtons[category] = button
-	
+
 	local frame = createCategoryFrame(category)
 	categoryFrames[category] = frame
 end
--- Функция для показа категории (как в оригинале)
+-- Function to show category (as in original)
 local function showCategory(categoryName)
 	-- Скрываем все фреймы
 	for _, frame in pairs(categoryFrames) do
 		frame.Visible = false
 	end
-	
+
 	-- Сбрасываем все кнопки
 	for name, button in pairs(categoryButtons) do
 		TweenService:Create(button, TweenInfo.new(0.2), {
@@ -1498,21 +2282,21 @@ local function showCategory(categoryName)
 			TextColor3 = Color3.fromRGB(220, 220, 220)
 		}):Play()
 	end
-	
+
 	-- Показываем выбранную категорию
 	if categoryFrames[categoryName] then
 		categoryFrames[categoryName].Visible = true
 	end
-	
-	-- Подсвечиваем выбранную кнопку (как в оригинале)
+
+	-- Highlight selected button (as in original)
 	if categoryButtons[categoryName] then
 		TweenService:Create(categoryButtons[categoryName], TweenInfo.new(0.2), {
-			BackgroundColor3 = Color3.fromRGB(60, 100, 180),
+			BackgroundColor3 = Color3.fromRGB(30, 30, 30),
 			BackgroundTransparency = 0.5,
 			TextColor3 = Color3.fromRGB(255, 255, 255)
 		}):Play()
 	end
-	
+
 	-- Обновляем заголовок
 	categoryTitle.Text = categoryName
 	currentCategory = categoryName
@@ -1525,7 +2309,7 @@ for category, button in pairs(categoryButtons) do
 end
 -- Показываем первую категорию
 showCategory("Farm")
--- Создаём иконку меню (как в оригинале)
+-- Create menu icon (as in original)
 local menuIcon = Instance.new("TextButton")
 menuIcon.Name = "MenuIcon"
 menuIcon.Size = UDim2.new(0, 50, 0, 50)
@@ -1547,28 +2331,28 @@ local iconStroke = Instance.new("UIStroke")
 iconStroke.Color = Color3.fromRGB(27, 42, 53)
 iconStroke.Thickness = 1
 iconStroke.Parent = menuIcon
--- Создаём IconImage (как в оригинале)
+-- Create IconImage (as in original)
 local iconImage = Instance.new("ImageLabel")
 iconImage.Name = "IconImage"
 iconImage.Size = UDim2.new(1, 0, 1, 0)
 iconImage.Position = UDim2.new(0, 0, 0, 0)
 iconImage.BackgroundTransparency = 1
 iconImage.BorderSizePixel = 0
-iconImage.Image = "rbxassetid://77552247496328" -- Иконка меню (как в оригинале)
+iconImage.Image = "rbxassetid://77552247496328" -- Menu icon (as in original)
 iconImage.ScaleType = Enum.ScaleType.Fit
 iconImage.Parent = menuIcon
 -- UICorner для IconImage
 local iconImageCorner = Instance.new("UICorner")
 iconImageCorner.CornerRadius = UDim.new(0, 8)
 iconImageCorner.Parent = iconImage
--- UIStroke для IconImage (как в оригинале)
+-- UIStroke for IconImage (as in original)
 local iconImageStroke = Instance.new("UIStroke")
 iconImageStroke.Name = "IconStroke"
 iconImageStroke.Color = Color3.fromRGB(251, 255, 255)
 iconImageStroke.Thickness = 2.5
 iconImageStroke.Transparency = 0
 iconImageStroke.Parent = iconImage
--- Переменные для перетаскивания
+-- Variables for dragging
 local draggingMainFrame = false
 local dragStartMainFrame = nil
 local startPosMainFrame = nil
@@ -1579,33 +2363,40 @@ local dragStartMenuIcon = nil
 local startPosMenuIcon = nil
 local isDraggingMenuIcon = false
 
--- Переменные для изменения размера
+-- Variables for resizing
 local isResizing = false
 local resizeStartPos = nil
 local resizeStartSize = nil
 
--- Переменная состояния меню
+-- Menu state variable
 local menuOpen = false
+local firstOpen = true -- Flag for first open
 
--- Переменные для максимизации
+-- Variables for maximizing
 local isMaximized = false
-local originalSize = UDim2.new(0, 700, 0, 500)
+local originalSize = UDim2.new(0, 575, 0, 455)
 local originalPosition = UDim2.new(0.5, -350, 0.5, -250)
 local maximizedSize = UDim2.new(1, -40, 1, -40)
 local maximizedPosition = UDim2.new(0, 20, 0, 20)
--- Функция для переключения меню
+-- Function to toggle menu
 local function toggleMenu()
 	menuOpen = not menuOpen
 	mainFrame.Visible = menuOpen
-	
+
 	if menuOpen then
-		-- Анимация открытия
+		-- Show welcome notification on first open
+		if firstOpen then
+			showNotification("ⓘInformation", "NexusHubX - FishIt! activated.")
+			firstOpen = false
+		end
+
+		-- Opening animation
 		mainFrame.Size = UDim2.new(0, 0, 0, 0)
 		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-			Size = UDim2.new(0, 700, 0, 500)
+			Size = UDim2.new(0, 575, 0, 455)
 		}):Play()
 	else
-		-- Анимация закрытия
+		-- Closing animation
 		TweenService:Create(mainFrame, TweenInfo.new(0.2), {
 			Size = UDim2.new(0, 0, 0, 0)
 		}):Play()
@@ -1613,17 +2404,17 @@ local function toggleMenu()
 		mainFrame.Visible = false
 	end
 end
--- Перетаскивание mainFrame
+-- Dragging mainFrame
 mainFrame.Active = true
 mainFrame.Draggable = true
 
--- Перетаскивание menuIcon
+-- Dragging menuIcon
 menuIcon.Active = true
 menuIcon.Draggable = true
 
--- Подключаем иконку меню
+-- Connect menu icon
 menuIcon.MouseButton1Click:Connect(toggleMenu)
--- Уголок для изменения размера (закругленный угол справа от меню)
+-- Resize handle (rounded corner on right side of menu)
 local resizeHandle = Instance.new("TextButton")
 resizeHandle.Name = "ResizeHandle"
 resizeHandle.Size = UDim2.new(0, 50, 0, 50)
@@ -1635,12 +2426,12 @@ resizeHandle.Text = ""
 resizeHandle.ZIndex = 10
 resizeHandle.Parent = mainFrame
 
--- UICorner для уголка (закругленный угол)
+-- UICorner for handle (rounded corner)
 local resizeCorner = Instance.new("UICorner")
 resizeCorner.CornerRadius = UDim.new(0, 25)
 resizeCorner.Parent = resizeHandle
 
--- Визуальный уголок - вертикальная линия (продлевается наверх)
+-- Visual handle - vertical line (extends upward)
 local resizeVertical = Instance.new("Frame")
 resizeVertical.Name = "ResizeVertical"
 resizeVertical.Size = UDim2.new(0, 4, 0, 40)
@@ -1649,7 +2440,7 @@ resizeVertical.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
 resizeVertical.BorderSizePixel = 0
 resizeVertical.Parent = resizeHandle
 
--- Визуальный уголок - горизонтальная линия (продлевается налево)
+-- Visual handle - horizontal line (extends left)
 local resizeHorizontal = Instance.new("Frame")
 resizeHorizontal.Name = "ResizeHorizontal"
 resizeHorizontal.Size = UDim2.new(0, 40, 0, 4)
@@ -1658,7 +2449,7 @@ resizeHorizontal.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
 resizeHorizontal.BorderSizePixel = 0
 resizeHorizontal.Parent = resizeHandle
 
--- UICorner для линий
+-- UICorner for lines
 local verticalCorner = Instance.new("UICorner")
 verticalCorner.CornerRadius = UDim.new(0, 2)
 verticalCorner.Parent = resizeVertical
@@ -1667,7 +2458,7 @@ local horizontalCorner = Instance.new("UICorner")
 horizontalCorner.CornerRadius = UDim.new(0, 2)
 horizontalCorner.Parent = resizeHorizontal
 
--- Функция для изменения размера (увеличение и уменьшение)
+-- Function to resize (increase and decrease)
 resizeHandle.MouseButton1Down:Connect(function()
 	isResizing = true
 	resizeStartPos = UserInputService:GetMouseLocation()
@@ -1682,20 +2473,20 @@ end)
 
 UserInputService.InputChanged:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
-	
+
 	if isResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
 		local mousePos = UserInputService:GetMouseLocation()
 		local delta = mousePos - resizeStartPos
-		
-		-- Увеличение и уменьшение размера с минимальными ограничениями
+
+		-- Increase and decrease size with minimum limits
 		local newWidth = math.max(400, resizeStartSize.X + delta.X)
 		local newHeight = math.max(300, resizeStartSize.Y + delta.Y)
-		
+
 		mainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
 	end
 end)
 
--- Hover эффект для уголка
+-- Hover effect for handle
 resizeHandle.MouseEnter:Connect(function()
 	TweenService:Create(resizeHandle, TweenInfo.new(0.2), {
 		BackgroundTransparency = 0
@@ -1708,39 +2499,39 @@ resizeHandle.MouseLeave:Connect(function()
 	}):Play()
 end)
 
--- Функция для максимизации/восстановления
+-- Function to maximize/restore
 local function toggleMaximize()
 	isMaximized = not isMaximized
-	
+
 	if isMaximized then
-		-- Сохраняем текущие позицию и размер
+		-- Save current position and size
 		originalSize = mainFrame.Size
 		originalPosition = mainFrame.Position
-		
-		-- Развернуть на весь экран
+
+		-- Maximize to full screen
 		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
 			Size = maximizedSize,
 			Position = maximizedPosition
 		}):Play()
-		
+
 		maximizeButton.Text = "⛶"
 	else
-		-- Восстановить исходный размер
+		-- Restore original size
 		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
 			Size = originalSize,
 			Position = originalPosition
 		}):Play()
-		
+
 		maximizeButton.Text = "⛶"
 	end
 end
 
--- Подключаем кнопку свернуть
+-- Connect minimize button
 minimizeButton.MouseButton1Click:Connect(toggleMenu)
 
--- Подключаем кнопку развернуть/сжать
+-- Connect maximize/restore button
 maximizeButton.MouseButton1Click:Connect(toggleMaximize)
--- Создаём диалоговое окно закрытия (как в оригинале)
+-- Create close dialog (as in original)
 local closeDialog = Instance.new("Frame")
 closeDialog.Name = "CloseDialog"
 closeDialog.Size = UDim2.new(0, 300, 0, 150)
@@ -1752,16 +2543,16 @@ closeDialog.BorderColor3 = Color3.fromRGB(20, 20, 20)
 closeDialog.Visible = false
 closeDialog.ZIndex = 100
 closeDialog.Parent = mainFrame
--- UICorner для диалога
+-- UICorner for dialog
 local dialogCorner = Instance.new("UICorner")
 dialogCorner.CornerRadius = UDim.new(0, 12)
 dialogCorner.Parent = closeDialog
--- UIStroke для диалога
+-- UIStroke for dialog
 local dialogStroke = Instance.new("UIStroke")
 dialogStroke.Color = Color3.fromRGB(20, 20, 20)
 dialogStroke.Thickness = 1
 dialogStroke.Parent = closeDialog
--- Заголовок диалога
+-- Dialog title
 local dialogTitle = Instance.new("TextLabel")
 dialogTitle.Name = "Title"
 dialogTitle.Size = UDim2.new(1, 0, 0, 40)
@@ -1773,11 +2564,11 @@ dialogTitle.TextSize = 20
 dialogTitle.Font = Enum.Font.GothamBold
 dialogTitle.TextXAlignment = Enum.TextXAlignment.Left
 dialogTitle.Parent = closeDialog
--- UIPadding для заголовка диалога
+-- UIPadding for dialog title
 local dialogTitlePadding = Instance.new("UIPadding")
 dialogTitlePadding.PaddingLeft = UDim.new(0, 15)
 dialogTitlePadding.Parent = dialogTitle
--- Вопрос диалога
+-- Dialog question
 local dialogQuestion = Instance.new("TextLabel")
 dialogQuestion.Name = "Question"
 dialogQuestion.Size = UDim2.new(1, 0, 0, 30)
@@ -1789,11 +2580,11 @@ dialogQuestion.TextSize = 14
 dialogQuestion.Font = Enum.Font.Gotham
 dialogQuestion.TextXAlignment = Enum.TextXAlignment.Left
 dialogQuestion.Parent = closeDialog
--- UIPadding для вопроса диалога
+-- UIPadding for dialog question
 local dialogQuestionPadding = Instance.new("UIPadding")
 dialogQuestionPadding.PaddingLeft = UDim.new(0, 15)
 dialogQuestionPadding.Parent = dialogQuestion
--- Предупреждение диалога
+-- Dialog warning
 local dialogWarning = Instance.new("TextLabel")
 dialogWarning.Name = "Warning"
 dialogWarning.Size = UDim2.new(1, 0, 0, 30)
@@ -1805,11 +2596,11 @@ dialogWarning.TextSize = 12
 dialogWarning.Font = Enum.Font.Gotham
 dialogWarning.TextXAlignment = Enum.TextXAlignment.Left
 dialogWarning.Parent = closeDialog
--- UIPadding для предупреждения диалога
+-- UIPadding for dialog warning
 local dialogWarningPadding = Instance.new("UIPadding")
 dialogWarningPadding.PaddingLeft = UDim.new(0, 15)
 dialogWarningPadding.Parent = dialogWarning
--- Контейнер кнопок диалога
+-- Dialog button container
 local dialogButtonContainer = Instance.new("Frame")
 dialogButtonContainer.Name = "ButtonContainer"
 dialogButtonContainer.Size = UDim2.new(1, 0, 0, 40)
@@ -1829,11 +2620,11 @@ cancelButton.TextColor3 = Color3.fromRGB(180, 180, 180)
 cancelButton.TextSize = 14
 cancelButton.Font = Enum.Font.Gotham
 cancelButton.Parent = dialogButtonContainer
--- UICorner для Cancel
+-- UICorner for Cancel
 local cancelCorner = Instance.new("UICorner")
 cancelCorner.CornerRadius = UDim.new(0, 8)
 cancelCorner.Parent = cancelButton
--- Hover эффект для Cancel
+-- Hover effect for Cancel
 cancelButton.MouseEnter:Connect(function()
 	TweenService:Create(cancelButton, TweenInfo.new(0.2), {
 		BackgroundColor3 = Color3.fromRGB(80, 80, 80)
@@ -1857,11 +2648,11 @@ confirmCloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 confirmCloseButton.TextSize = 14
 confirmCloseButton.Font = Enum.Font.Gotham
 confirmCloseButton.Parent = dialogButtonContainer
--- UICorner для Close Window
+-- UICorner for Close Window
 local confirmCorner = Instance.new("UICorner")
 confirmCorner.CornerRadius = UDim.new(0, 8)
 confirmCorner.Parent = confirmCloseButton
--- Hover эффект для Close Window
+-- Hover effect for Close Window
 confirmCloseButton.MouseEnter:Connect(function()
 	TweenService:Create(confirmCloseButton, TweenInfo.new(0.2), {
 		BackgroundColor3 = Color3.fromRGB(80, 80, 80)
@@ -1872,58 +2663,58 @@ confirmCloseButton.MouseLeave:Connect(function()
 		BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	}):Play()
 end)
--- Функция закрытия меню
+-- Function to close menu
 local function closeMenu()
-	-- Скрываем иконку
+	-- Hide icon
 	menuIcon.Visible = false
-	-- Удаляем главное меню
+	-- Remove main menu
 	mainFrame:Destroy()
 end
--- Подключаем кнопку закрыть - показать диалог
+-- Connect close button - show dialog
 closeButton.MouseButton1Click:Connect(function()
 	closeDialog.Visible = true
 end)
--- Кнопка Cancel - скрыть диалог
+-- Cancel button - hide dialog
 cancelButton.MouseButton1Click:Connect(function()
 	closeDialog.Visible = false
 end)
--- Кнопка Close Window - закрыть меню
+-- Close Window button - close menu
 confirmCloseButton.MouseButton1Click:Connect(function()
 	closeMenu()
 end)
--- Подключаем keybind
+-- Connect keybind
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then return end
-	
+
 	if input.KeyCode == keybind and not isChangingKeybind then
 		toggleMenu()
 	end
 end)
--- Ping Monitor обновление
+-- Ping Monitor update
 RunService.Heartbeat:Connect(function()
 	if isPingMonitorEnabled and pingValueLabel then
 		local ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue())
 		pingValueLabel.Text = "Ping: " .. ping .. " ms"
-		
-		-- Меняем цвет в зависимости от пинга
+
+		-- Change color based on ping
 		if ping < 100 then
-			pingValueLabel.TextColor3 = Color3.fromRGB(100, 255, 100) -- Зеленый
+			pingValueLabel.TextColor3 = Color3.fromRGB(100, 255, 100) -- Green
 		elseif ping < 200 then
-			pingValueLabel.TextColor3 = Color3.fromRGB(255, 200, 100) -- Желтый
+			pingValueLabel.TextColor3 = Color3.fromRGB(255, 200, 100) -- Yellow
 		else
-			pingValueLabel.TextColor3 = Color3.fromRGB(255, 100, 100) -- Красный
+			pingValueLabel.TextColor3 = Color3.fromRGB(255, 100, 100) -- Red
 		end
 	end
 end)
--- Обработка InfinityJump
+-- Handle InfinityJump
 UserInputService.JumpRequest:Connect(function()
 	if infiniteJumpEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 		local humanoid = LocalPlayer.Character.Humanoid
-		-- Позволяем прыгать в воздухе
+		-- Allow jumping in air
 		humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 	end
 end)
--- Обработка Noclip
+-- Handle Noclip
 RunService.Stepped:Connect(function()
 	if noclipEnabled and LocalPlayer.Character then
 		for _, part in LocalPlayer.Character:GetDescendants() do
@@ -1933,19 +2724,19 @@ RunService.Stepped:Connect(function()
 		end
 	end
 end)
--- Airwalk обрабатывается внутри toggle функции
--- Обработка при спавне персонажа
+-- Airwalk is handled inside toggle function
+-- Handle character spawn
 LocalPlayer.CharacterAdded:Connect(function(character)
-	-- Применяем настройки
+	-- Apply settings
 	character:WaitForChild("Humanoid")
-	
-	-- Применяем Speed
+
+	-- Apply Speed
 	if character:FindFirstChild("Humanoid") then
 		character.Humanoid.WalkSpeed = currentSpeed
 		character.Humanoid.JumpPower = currentJump
 	end
-	
-	-- Применяем Noclip
+
+	-- Apply Noclip
 	if noclipEnabled then
 		for _, part in character:GetDescendants() do
 			if part:IsA("BasePart") then
