@@ -393,6 +393,30 @@ sidebarPadding.PaddingLeft = UDim.new(0, 10)
 sidebarPadding.PaddingRight = UDim.new(0, 10)
 sidebarPadding.PaddingBottom = UDim.new(0, 10)
 sidebarPadding.Parent = sidebar
+
+-- Create ScrollingFrame for categories
+local sidebarScroll = Instance.new("ScrollingFrame")
+sidebarScroll.Name = "CategoryScroll"
+sidebarScroll.Size = UDim2.new(1, 0, 1, -55)
+sidebarScroll.Position = UDim2.new(0, 0, 0, 55)
+sidebarScroll.BackgroundTransparency = 1
+sidebarScroll.BorderSizePixel = 0
+sidebarScroll.ScrollBarThickness = 4
+sidebarScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
+sidebarScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+sidebarScroll.Parent = sidebar
+
+-- UIListLayout for category buttons
+local sidebarListLayout = Instance.new("UIListLayout")
+sidebarListLayout.Padding = UDim.new(0, 5)
+sidebarListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+sidebarListLayout.Parent = sidebarScroll
+
+-- UIPadding for ScrollingFrame
+local scrollPadding = Instance.new("UIPadding")
+scrollPadding.PaddingLeft = UDim.new(0, 0)
+scrollPadding.PaddingRight = UDim.new(0, 5)
+scrollPadding.Parent = sidebarScroll
 -- Decorative icon in Sidebar (as in original)
 local decorativeIcon = Instance.new("TextButton")
 decorativeIcon.Name = "DecorativeIcon"
@@ -525,8 +549,8 @@ local currentCategory = "Farm"
 local function createCategoryButton(categoryName, index)
 	local button = Instance.new("TextButton")
 	button.Name = categoryName .. "Button"
-	button.Size = UDim2.new(1, -20, 0, 40)
-	button.Position = UDim2.new(0, 5, 0, 55 + (index - 1) * 45)
+	button.Size = UDim2.new(1, -5, 0, 40)
+	button.LayoutOrder = index
 	button.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 	button.BackgroundTransparency = 1
 	button.BorderSizePixel = 0
@@ -535,7 +559,7 @@ local function createCategoryButton(categoryName, index)
 	button.TextSize = 14
 	button.Font = Enum.Font.GothamBold
 	button.TextXAlignment = Enum.TextXAlignment.Left
-	button.Parent = sidebar
+	button.Parent = sidebarScroll
 
 	-- UICorner (as in original)
 	local corner = Instance.new("UICorner")
@@ -817,8 +841,8 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	-- Кнопка выбора (dropdown button)
 	local dropdownButton = Instance.new("TextButton")
 	dropdownButton.Name = "DropdownButton"
-	dropdownButton.Size = UDim2.new(0, 170, 0, 28)
-	dropdownButton.Position = UDim2.new(1, -185, 0.5, -14)
+	dropdownButton.Size = UDim2.new(0, 150, 0, 28)
+	dropdownButton.Position = UDim2.new(1, -165, 0.5, -14)
 	dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 	dropdownButton.BackgroundTransparency = 0
 	dropdownButton.BorderSizePixel = 0
@@ -843,16 +867,16 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	-- Добавляем кнопку в глобальный список
 	table.insert(allDropdownButtons, dropdownButton)
 
-	-- Выпадающий список (dropdown menu)
+	-- Выпадающий список (dropdown menu) - открывается ВНИЗ с высоким ZIndex
 	local dropdownMenu = Instance.new("Frame")
 	dropdownMenu.Name = "DropdownMenu"
-	dropdownMenu.Size = UDim2.new(0, 170, 0, 0)
-	dropdownMenu.Position = UDim2.new(1, -185, 1, 15)
+	dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
+	dropdownMenu.Position = UDim2.new(1, -165, 1, 5) -- Позиция ниже кнопки
 	dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	dropdownMenu.BackgroundTransparency = 0.1
 	dropdownMenu.BorderSizePixel = 0
 	dropdownMenu.Visible = false
-	dropdownMenu.ZIndex = 100 -- Увеличили ZIndex чтобы было поверх всего
+	dropdownMenu.ZIndex = 200 -- Очень высокий ZIndex
 	dropdownMenu.Parent = elementFrame
 
 	-- UICorner для меню
@@ -916,8 +940,8 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		isDropdownOpen = true
 		dropdownMenu.Visible = true
 		-- Устанавливаем размер на основе количества элементов
-		local menuHeight = math.min(#items * 32, 270) -- Максимум 270 пикселей высоты
-		dropdownMenu.Size = UDim2.new(0, 170, 0, menuHeight)
+		local menuHeight = math.min(#items * 40, 360) -- Максимум 360 пикселей высоты
+		dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 		-- Добавляем в список открытых dropdown
 		openDropdowns[elementFrame] = closeDropdown
 		-- Скрываем все кнопки dropdown кроме текущей
@@ -928,7 +952,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	for _, item in ipairs(items) do
 		local itemButton = Instance.new("TextButton")
 		itemButton.Name = item.name or tostring(item)
-		itemButton.Size = UDim2.new(1, 0, 0, 30)
+		itemButton.Size = UDim2.new(1, 0, 0, 40)
 		itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 		itemButton.BackgroundTransparency = 0
 		itemButton.BorderSizePixel = 0
@@ -1459,18 +1483,33 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	title.TextYAlignment = Enum.TextYAlignment.Center
 	title.Parent = elementFrame
 
-	-- Значение
-	local valueLabel = Instance.new("TextLabel")
-	valueLabel.Name = "ValueLabel"
-	valueLabel.Size = UDim2.new(0, 80, 0, 25)
-	valueLabel.Position = UDim2.new(1, -90, 0, 5)
-	valueLabel.BackgroundTransparency = 1
-	valueLabel.Text = tostring(defaultValue)
-	valueLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	valueLabel.TextSize = 14
-	valueLabel.Font = Enum.Font.GothamBold
-	valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-	valueLabel.Parent = elementFrame
+	-- TextBox для ручного ввода
+	local valueTextBox = Instance.new("TextBox")
+	valueTextBox.Name = "ValueTextBox"
+	valueTextBox.Size = UDim2.new(0, 50, 0, 25)
+	valueTextBox.Position = UDim2.new(1, -90, 0, 5)
+	valueTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	valueTextBox.BackgroundTransparency = 0
+	valueTextBox.BorderSizePixel = 0
+	valueTextBox.Text = tostring(defaultValue)
+	valueTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	valueTextBox.TextSize = 14
+	valueTextBox.Font = Enum.Font.GothamBold
+	valueTextBox.TextXAlignment = Enum.TextXAlignment.Right
+	valueTextBox.PlaceholderText = ""
+	valueTextBox.ClearTextOnFocus = false
+	valueTextBox.Parent = elementFrame
+
+	-- UICorner для TextBox
+	local textBoxCorner = Instance.new("UICorner")
+	textBoxCorner.CornerRadius = UDim.new(0, 4)
+	textBoxCorner.Parent = valueTextBox
+
+	-- UIStroke для TextBox
+	local textBoxStroke = Instance.new("UIStroke")
+	textBoxStroke.Color = Color3.fromRGB(60, 60, 60)
+	textBoxStroke.Thickness = 1
+	textBoxStroke.Parent = valueTextBox
 
 	-- Slider track
 	local sliderTrack = Instance.new("ImageButton")
@@ -1528,7 +1567,7 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 		local relativePos = math.clamp((mouseX - trackPos) / trackSize, 0, 1)
 
 		currentValue = math.floor(minValue + relativePos * (maxValue - minValue))
-		valueLabel.Text = tostring(currentValue)
+		valueTextBox.Text = tostring(currentValue)
 		sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
 		sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
 
@@ -1536,10 +1575,42 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 		return relativePos
 	end
 
+	-- Функция для обновления значения из TextBox
+	local function updateFromTextBox()
+		local inputText = valueTextBox.Text
+		local newValue = tonumber(inputText)
+
+		if newValue then
+			-- Ограничиваем значение в пределах диапазона
+			newValue = math.clamp(math.floor(newValue), minValue, maxValue)
+			currentValue = newValue
+
+			-- Обновляем UI
+			valueTextBox.Text = tostring(currentValue)
+
+			-- Обновляем позицию слайдера
+			local relativePos = (currentValue - minValue) / (maxValue - minValue)
+			sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+			sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
+
+			callback(currentValue)
+		end
+	end
+
 	-- Функция для начала перетаскивания
 	local function startDrag()
+		-- Отключаем старые соединения если есть
+		if renderConnection then
+			renderConnection:Disconnect()
+			renderConnection = nil
+		end
+		if releaseConnection then
+			releaseConnection:Disconnect()
+			releaseConnection = nil
+		end
+
 		isDragging = true
-		
+
 		-- Используем RenderStepped для плавного обновления
 		renderConnection = RunService.RenderStepped:Connect(function()
 			if isDragging then
@@ -1547,7 +1618,7 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 				updateSlider(mousePos.X)
 			end
 		end)
-		
+
 		-- Создаем обработчик отпускания кнопки только для этого ползунка
 		releaseConnection = UserInputService.InputEnded:Connect(function(input, gameProcessed)
 			if gameProcessed then return end
@@ -1579,9 +1650,14 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	-- Инициализация ползунка
 	local initialRelativePos = (defaultValue - minValue) / (maxValue - minValue)
 	currentValue = defaultValue
-	valueLabel.Text = tostring(currentValue)
+	valueTextBox.Text = tostring(currentValue)
 	sliderFill.Size = UDim2.new(initialRelativePos, 0, 1, 0)
 	sliderKnob.Position = UDim2.new(initialRelativePos, -8, 0.5, -8)
+
+	-- Обработчик ввода в TextBox
+	valueTextBox.FocusLost:Connect(function(enterPressed)
+		updateFromTextBox()
+	end)
 
 	return elementFrame
 end
@@ -1638,6 +1714,7 @@ local function createCategoryFrame(categoryName)
 			{["name"] = "Fisherman Island", ["pos"] = Vector3.new(34.2641716003418, 9.628792762756348, 2803.64599609375)},
 			{["name"] = "Traveling Merchant", ["pos"] = Vector3.new(-137.52841186523438, 3.2620537281036377, 2768.219970703125)},
 			{["name"] = "Planetary Observatory", ["pos"] = Vector3.new(394.7527770996094, 7.251010417938232, 2157.100341796875)},
+			{["name"] = "Underwater City", ["pos"] = Vector3.new(-3183.60595703125, -637.023681640625, -10305.6787109375)},
 			{["name"] = "Crater Island", ["pos"] = Vector3.new(969.0936279296875, 7.362037181854248, 4872.45166015625)},
 			{["name"] = "Tropical Grove", ["pos"] = Vector3.new(-2129.407958984375, 53.48722839355469, 3741.8310546875)},
 			{["name"] = "Weather Machine", ["pos"] = Vector3.new(-1519.586669921875, 6.499998569488525, 1884.587646484375)},
@@ -1698,7 +1775,7 @@ local function createCategoryFrame(categoryName)
 			title.Text = featureName
 			title.TextColor3 = Color3.fromRGB(220, 220, 220)
 			title.TextSize = 16
-			title.Font = Enum.Font.Gotham
+			title.Font = Enum.Font.GothamBold
 			title.TextXAlignment = Enum.TextXAlignment.Left
 			title.TextYAlignment = Enum.TextYAlignment.Center
 			title.Parent = elementFrame
@@ -1706,8 +1783,8 @@ local function createCategoryFrame(categoryName)
 			-- Кнопка выбора (dropdown button)
 			local dropdownButton = Instance.new("TextButton")
 			dropdownButton.Name = "DropdownButton"
-			dropdownButton.Size = UDim2.new(0, 170, 0, 28)
-			dropdownButton.Position = UDim2.new(1, -185, 0.5, -14)
+			dropdownButton.Size = UDim2.new(0, 150, 0, 28)
+			dropdownButton.Position = UDim2.new(1, -165, 0.5, -14)
 			dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 			dropdownButton.BackgroundTransparency = 0
 			dropdownButton.BorderSizePixel = 0
@@ -1735,8 +1812,8 @@ local function createCategoryFrame(categoryName)
 			-- Выпадающий список (dropdown menu)
 			local dropdownMenu = Instance.new("Frame")
 			dropdownMenu.Name = "DropdownMenu"
-			dropdownMenu.Size = UDim2.new(0, 170, 0, 0)
-			dropdownMenu.Position = UDim2.new(1, -185, 1, 15)
+			dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
+			dropdownMenu.Position = UDim2.new(1, -165, 1, 15)
 			dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 			dropdownMenu.BackgroundTransparency = 0.1
 			dropdownMenu.BorderSizePixel = 0
@@ -1815,7 +1892,7 @@ local function createCategoryFrame(categoryName)
 				for _, item in ipairs(playersList) do
 					local itemButton = Instance.new("TextButton")
 					itemButton.Name = item.name
-					itemButton.Size = UDim2.new(1, 0, 0, 30)
+					itemButton.Size = UDim2.new(1, 0, 0, 40)
 					itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 					itemButton.BackgroundTransparency = 0
 					itemButton.BorderSizePixel = 0
@@ -1890,8 +1967,8 @@ local function createCategoryFrame(categoryName)
 				dropdownMenu.Visible = true
 				-- Устанавливаем размер на основе количества элементов
 				local playersList = getPlayerList()
-				local menuHeight = math.min(#playersList * 32, 270)
-				dropdownMenu.Size = UDim2.new(0, 170, 0, menuHeight)
+				local menuHeight = math.min(#playersList * 40, 360)
+				dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 				openDropdowns[elementFrame] = closeDropdown
 				-- Не скрываем кнопку при открытии dropdown
 				-- hideAllDropdownButtons(dropdownButton)
@@ -2267,6 +2344,9 @@ for i, category in ipairs(categories) do
 	local frame = createCategoryFrame(category)
 	categoryFrames[category] = frame
 end
+
+-- Update canvas size based on content
+sidebarScroll.CanvasSize = UDim2.new(0, 0, 0, #categories * 45)
 -- Function to show category (as in original)
 local function showCategory(categoryName)
 	-- Скрываем все фреймы
@@ -2458,31 +2538,37 @@ local horizontalCorner = Instance.new("UICorner")
 horizontalCorner.CornerRadius = UDim.new(0, 2)
 horizontalCorner.Parent = resizeHorizontal
 
--- Function to resize (increase and decrease)
+-- Function to resize (increase and decrease) - Optimized with RenderStepped
+local resizeConnection = nil
+
 resizeHandle.MouseButton1Down:Connect(function()
 	isResizing = true
 	resizeStartPos = UserInputService:GetMouseLocation()
 	resizeStartSize = mainFrame.AbsoluteSize
+
+	-- Use RenderStepped for smooth, frame-synced updates
+	resizeConnection = RunService.RenderStepped:Connect(function()
+		if isResizing then
+			local mousePos = UserInputService:GetMouseLocation()
+			local delta = mousePos - resizeStartPos
+
+			-- Increase and decrease size with minimum limits
+			local newWidth = math.max(400, resizeStartSize.X + delta.X)
+			local newHeight = math.max(300, resizeStartSize.Y + delta.Y)
+
+			mainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+		end
+	end)
 end)
 
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		isResizing = false
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
-
-	if isResizing and input.UserInputType == Enum.UserInputType.MouseMovement then
-		local mousePos = UserInputService:GetMouseLocation()
-		local delta = mousePos - resizeStartPos
-
-		-- Increase and decrease size with minimum limits
-		local newWidth = math.max(400, resizeStartSize.X + delta.X)
-		local newHeight = math.max(300, resizeStartSize.Y + delta.Y)
-
-		mainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
+		-- Clean up the connection when not resizing
+		if resizeConnection then
+			resizeConnection:Disconnect()
+			resizeConnection = nil
+		end
 	end
 end)
 
@@ -2574,9 +2660,9 @@ dialogQuestion.Name = "Question"
 dialogQuestion.Size = UDim2.new(1, 0, 0, 30)
 dialogQuestion.Position = UDim2.new(0, 0, 0, 55)
 dialogQuestion.BackgroundTransparency = 1
-dialogQuestion.Text = "Do you want to close this window?"
+dialogQuestion.Text = "Do you want to close this window?\nYou will not be able to open it again."
 dialogQuestion.TextColor3 = Color3.fromRGB(220, 220, 220)
-dialogQuestion.TextSize = 14
+dialogQuestion.TextSize = 15
 dialogQuestion.Font = Enum.Font.Gotham
 dialogQuestion.TextXAlignment = Enum.TextXAlignment.Left
 dialogQuestion.Parent = closeDialog
@@ -2584,22 +2670,6 @@ dialogQuestion.Parent = closeDialog
 local dialogQuestionPadding = Instance.new("UIPadding")
 dialogQuestionPadding.PaddingLeft = UDim.new(0, 15)
 dialogQuestionPadding.Parent = dialogQuestion
--- Dialog warning
-local dialogWarning = Instance.new("TextLabel")
-dialogWarning.Name = "Warning"
-dialogWarning.Size = UDim2.new(1, 0, 0, 30)
-dialogWarning.Position = UDim2.new(0, 0, 0, 85)
-dialogWarning.BackgroundTransparency = 1
-dialogWarning.Text = "You will not be able to open it again."
-dialogWarning.TextColor3 = Color3.fromRGB(220, 220, 220)
-dialogWarning.TextSize = 12
-dialogWarning.Font = Enum.Font.Gotham
-dialogWarning.TextXAlignment = Enum.TextXAlignment.Left
-dialogWarning.Parent = closeDialog
--- UIPadding for dialog warning
-local dialogWarningPadding = Instance.new("UIPadding")
-dialogWarningPadding.PaddingLeft = UDim.new(0, 15)
-dialogWarningPadding.Parent = dialogWarning
 -- Dialog button container
 local dialogButtonContainer = Instance.new("Frame")
 dialogButtonContainer.Name = "ButtonContainer"
@@ -2610,15 +2680,15 @@ dialogButtonContainer.Parent = closeDialog
 -- Кнопка Cancel
 local cancelButton = Instance.new("TextButton")
 cancelButton.Name = "CancelButton"
-cancelButton.Size = UDim2.new(0, 100, 0, 30)
+cancelButton.Size = UDim2.new(0, 110, 0, 35)
 cancelButton.Position = UDim2.new(0.5, -110, 0, 5)
 cancelButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 cancelButton.BackgroundTransparency = 0
 cancelButton.BorderSizePixel = 0
 cancelButton.Text = "Cancel"
 cancelButton.TextColor3 = Color3.fromRGB(180, 180, 180)
-cancelButton.TextSize = 14
-cancelButton.Font = Enum.Font.Gotham
+cancelButton.TextSize = 15
+cancelButton.Font = Enum.Font.GothamBold
 cancelButton.Parent = dialogButtonContainer
 -- UICorner for Cancel
 local cancelCorner = Instance.new("UICorner")
@@ -2638,15 +2708,15 @@ end)
 -- Кнопка Close Window
 local confirmCloseButton = Instance.new("TextButton")
 confirmCloseButton.Name = "ConfirmCloseButton"
-confirmCloseButton.Size = UDim2.new(0, 100, 0, 30)
+confirmCloseButton.Size = UDim2.new(0, 110, 0, 35)
 confirmCloseButton.Position = UDim2.new(0.5, 10, 0, 5)
 confirmCloseButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 confirmCloseButton.BackgroundTransparency = 0
 confirmCloseButton.BorderSizePixel = 0
 confirmCloseButton.Text = "Close Window"
-confirmCloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-confirmCloseButton.TextSize = 14
-confirmCloseButton.Font = Enum.Font.Gotham
+confirmCloseButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+confirmCloseButton.TextSize = 15
+confirmCloseButton.Font = Enum.Font.GothamBold
 confirmCloseButton.Parent = dialogButtonContainer
 -- UICorner for Close Window
 local confirmCorner = Instance.new("UICorner")
@@ -2724,7 +2794,6 @@ RunService.Stepped:Connect(function()
 		end
 	end
 end)
--- Airwalk is handled inside toggle function
 -- Handle character spawn
 LocalPlayer.CharacterAdded:Connect(function(character)
 	-- Apply settings
