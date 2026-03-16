@@ -56,6 +56,7 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "NexusHubX_FishIt"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.AutoLocalize = false -- Disable automatic localization
 screenGui.Parent = playerGui
 
 -- Notification System
@@ -126,7 +127,7 @@ local function showNotification(title, message, duration)
 	messageLabel.Text = message
 	messageLabel.TextColor3 = Colors.Text
 	messageLabel.TextSize = 13
-	messageLabel.Font = Enum.Font.Gotham
+	messageLabel.Font = Enum.Font.GothamBold
 	messageLabel.TextXAlignment = Enum.TextXAlignment.Left
 	messageLabel.Parent = notification
 
@@ -135,8 +136,8 @@ local function showNotification(title, message, duration)
 	closeButton.Name = "CloseButton"
 	closeButton.Size = UDim2.new(0, 25, 0, 25)
 	closeButton.Position = UDim2.new(1, -30, 0, 5)
-	closeButton.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-	closeButton.BackgroundTransparency = 0.3
+	closeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	closeButton.BackgroundTransparency = 1
 	closeButton.BorderSizePixel = 0
 	closeButton.Text = "✕"
 	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -171,6 +172,18 @@ local function showNotification(title, message, duration)
 			notification:Destroy()
 		end
 	end
+
+	-- Hover effect for close button
+	closeButton.MouseEnter:Connect(function()
+		TweenService:Create(closeButton, TweenInfo.new(0.2), {
+			BackgroundTransparency = 0.5
+		}):Play()
+	end)
+	closeButton.MouseLeave:Connect(function()
+		TweenService:Create(closeButton, TweenInfo.new(0.2), {
+			BackgroundTransparency = 1
+		}):Play()
+	end)
 
 	-- Close button handler
 	closeButton.MouseButton1Click:Connect(closeNotification)
@@ -682,7 +695,7 @@ local function createToggleElement(parent, featureName, callback)
 			}):Play()
 		else
 			TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-				BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+				BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 			}):Play()
 			TweenService:Create(circle, TweenInfo.new(0.2), {
 				Position = UDim2.new(0, 2, 0.5, -10)
@@ -744,7 +757,7 @@ local function createMenuButton(parent, featureName, callback)
 	arrow.Position = UDim2.new(1, -40, 0.5, -15)
 	arrow.BackgroundTransparency = 1
 	arrow.Text = "▼"
-	arrow.TextColor3 = Color3.fromRGB(180, 180, 180)
+	arrow.TextColor3 = Color3.fromRGB(220, 220, 220)
 	arrow.TextSize = 14
 	arrow.Font = Enum.Font.GothamBold
 	arrow.TextXAlignment = Enum.TextXAlignment.Center
@@ -843,11 +856,11 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	dropdownButton.Name = "DropdownButton"
 	dropdownButton.Size = UDim2.new(0, 150, 0, 28)
 	dropdownButton.Position = UDim2.new(1, -165, 0.5, -14)
-	dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	dropdownButton.BackgroundTransparency = 0
+	dropdownButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	dropdownButton.BackgroundTransparency = 0.5
 	dropdownButton.BorderSizePixel = 0
 	dropdownButton.Text = "--      ▼"
-	dropdownButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+	dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 	dropdownButton.TextSize = 12
 	dropdownButton.Font = Enum.Font.GothamBold
 	dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -872,7 +885,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	dropdownMenu.Name = "DropdownMenu"
 	dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
 	dropdownMenu.Position = UDim2.new(1, -165, 1, 5) -- Позиция ниже кнопки
-	dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	dropdownMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	dropdownMenu.BackgroundTransparency = 0.1
 	dropdownMenu.BorderSizePixel = 0
 	dropdownMenu.Visible = false
@@ -886,7 +899,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 
 	-- UIStroke для меню
 	local menuStroke = Instance.new("UIStroke")
-	menuStroke.Color = Color3.fromRGB(80, 80, 80)
+	menuStroke.Color = Color3.fromRGB(60, 60, 60)
 	menuStroke.Thickness = 1
 	menuStroke.Parent = dropdownMenu
 
@@ -897,15 +910,28 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	scrollFrame.Position = UDim2.new(0, 0, 0, 0)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.BorderSizePixel = 0
-	scrollFrame.ScrollBarThickness = 4
+	scrollFrame.ScrollBarThickness = 0
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 32)
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 35 + 85) -- Добавили 370 пикселей дополнительного пространства внизу
 	scrollFrame.ZIndex = 101 -- Увеличили ZIndex для ScrollFrame
 	scrollFrame.Parent = dropdownMenu
+
+	-- Увеличиваем скорость прокрутки через колёсико мыши
+	dropdownMenu.MouseWheelForward:Connect(function()
+		local currentY = scrollFrame.CanvasPosition.Y
+		scrollFrame.CanvasPosition = Vector2.new(0, math.max(0, currentY - 100))
+	end)
+
+	dropdownMenu.MouseWheelBackward:Connect(function()
+		local currentY = scrollFrame.CanvasPosition.Y
+		local maxY = scrollFrame.CanvasSize.Y.Offset - scrollFrame.AbsoluteSize.Y
+		scrollFrame.CanvasPosition = Vector2.new(0, math.min(maxY, currentY + 100))
+	end)
 
 	-- UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 2)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = scrollFrame
 
 	-- Переменная состояния
@@ -940,7 +966,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		isDropdownOpen = true
 		dropdownMenu.Visible = true
 		-- Устанавливаем размер на основе количества элементов
-		local menuHeight = math.min(#items * 40, 360) -- Максимум 360 пикселей высоты
+		local menuHeight = math.min(#items * 35, 370) -- Максимум 370 пикселей высоты
 		dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 		-- Добавляем в список открытых dropdown
 		openDropdowns[elementFrame] = closeDropdown
@@ -949,15 +975,16 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	end
 
 	-- Создаем кнопки для каждого элемента
-	for _, item in ipairs(items) do
+	for index, item in ipairs(items) do
 		local itemButton = Instance.new("TextButton")
 		itemButton.Name = item.name or tostring(item)
-		itemButton.Size = UDim2.new(1, 0, 0, 40)
-		itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+		itemButton.Size = UDim2.new(0, 160, 0, 35)
+		itemButton.LayoutOrder = index -- Устанавливаем порядок
+		itemButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 		itemButton.BackgroundTransparency = 0
 		itemButton.BorderSizePixel = 0
 		itemButton.Text = item.name or tostring(item)
-		itemButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+		itemButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 		itemButton.TextSize = 12
 		itemButton.Font = Enum.Font.GothamBold
 		itemButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -977,13 +1004,13 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		-- Hover эффект
 		itemButton.MouseEnter:Connect(function()
 			TweenService:Create(itemButton, TweenInfo.new(0.15), {
-				BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+				BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 			}):Play()
 		end)
 
 		itemButton.MouseLeave:Connect(function()
 			TweenService:Create(itemButton, TweenInfo.new(0.15), {
-				BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 			}):Play()
 		end)
 
@@ -1010,13 +1037,13 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	-- Hover эффект для dropdown button
 	dropdownButton.MouseEnter:Connect(function()
 		TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
-			BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+			BackgroundColor3 = Color3.fromRGB(110, 110, 110)
 		}):Play()
 	end)
 
 	dropdownButton.MouseLeave:Connect(function()
 		TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
-			BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+			BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 		}):Play()
 	end)
 
@@ -1240,7 +1267,7 @@ local function createTeleportMenu(parent, locations, title)
 
 		button.MouseLeave:Connect(function()
 			TweenService:Create(button, TweenInfo.new(0.2), {
-				BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+				BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 			}):Play()
 		end)
 
@@ -1254,7 +1281,7 @@ local function createTeleportMenu(parent, locations, title)
 	end
 
 	-- Обновляем размер ScrollFrame
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #locations * 40)
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #locations * 35)
 
 	-- Кнопка закрыть
 	closeButton.MouseButton1Click:Connect(function()
@@ -1408,13 +1435,13 @@ local function createPlayerMenu(parent)
 				-- Hover эффект
 				button.MouseEnter:Connect(function()
 					TweenService:Create(button, TweenInfo.new(0.2), {
-						BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+						BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 					}):Play()
 				end)
 
 				button.MouseLeave:Connect(function()
 					TweenService:Create(button, TweenInfo.new(0.2), {
-						BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+						BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 					}):Play()
 				end)
 
@@ -1429,7 +1456,7 @@ local function createPlayerMenu(parent)
 		end
 
 		-- Обновляем размер ScrollFrame
-		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 40)
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 35)
 	end
 
 	-- Кнопка закрыть
@@ -1488,8 +1515,8 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	valueTextBox.Name = "ValueTextBox"
 	valueTextBox.Size = UDim2.new(0, 50, 0, 25)
 	valueTextBox.Position = UDim2.new(1, -90, 0, 5)
-	valueTextBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	valueTextBox.BackgroundTransparency = 0
+	valueTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	valueTextBox.BackgroundTransparency = 1
 	valueTextBox.BorderSizePixel = 0
 	valueTextBox.Text = tostring(defaultValue)
 	valueTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -1505,11 +1532,7 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	textBoxCorner.CornerRadius = UDim.new(0, 4)
 	textBoxCorner.Parent = valueTextBox
 
-	-- UIStroke для TextBox
-	local textBoxStroke = Instance.new("UIStroke")
-	textBoxStroke.Color = Color3.fromRGB(60, 60, 60)
-	textBoxStroke.Thickness = 1
-	textBoxStroke.Parent = valueTextBox
+
 
 	-- Slider track
 	local sliderTrack = Instance.new("ImageButton")
@@ -1557,8 +1580,21 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	-- Переменная состояния
 	local currentValue = defaultValue
 	local isDragging = false
-	local renderConnection = nil
+	local dragConnection = nil
 	local releaseConnection = nil
+
+	-- Функция для остановки перетаскивания
+	local function stopDrag()
+		isDragging = false
+		if dragConnection then
+			dragConnection:Disconnect()
+			dragConnection = nil
+		end
+		if releaseConnection then
+			releaseConnection:Disconnect()
+			releaseConnection = nil
+		end
+	end
 
 	-- Функция для обновления slider
 	local function updateSlider(mouseX)
@@ -1599,47 +1635,29 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 
 	-- Функция для начала перетаскивания
 	local function startDrag()
-		-- Отключаем старые соединения если есть
-		if renderConnection then
-			renderConnection:Disconnect()
-			renderConnection = nil
-		end
-		if releaseConnection then
-			releaseConnection:Disconnect()
-			releaseConnection = nil
-		end
+		-- Если уже перетаскиваем, не создаём новые соединения
+		if isDragging then return end
 
 		isDragging = true
 
 		-- Используем RenderStepped для плавного обновления
-		renderConnection = RunService.RenderStepped:Connect(function()
+		dragConnection = RunService.RenderStepped:Connect(function()
 			if isDragging then
 				local mousePos = UserInputService:GetMouseLocation()
 				updateSlider(mousePos.X)
 			end
 		end)
 
-		-- Создаем обработчик отпускания кнопки только для этого ползунка
-		releaseConnection = UserInputService.InputEnded:Connect(function(input, gameProcessed)
-			if gameProcessed then return end
-			if input.UserInputType == Enum.UserInputType.MouseButton1 and isDragging then
-				isDragging = false
-				if renderConnection then
-					renderConnection:Disconnect()
-					renderConnection = nil
-				end
-				if releaseConnection then
-					releaseConnection:Disconnect()
-					releaseConnection = nil
-				end
+		-- Создаем обработчик отпускания кнопки (БЕЗ проверки gameProcessed)
+		releaseConnection = UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				stopDrag()
 			end
 		end)
 	end
 
 	-- Mouse events
-	sliderKnob.MouseButton1Down:Connect(function()
-		startDrag()
-	end)
+	sliderKnob.MouseButton1Down:Connect(startDrag)
 
 	sliderTrack.MouseButton1Down:Connect(function()
 		local mousePos = UserInputService:GetMouseLocation()
@@ -1655,9 +1673,7 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 	sliderKnob.Position = UDim2.new(initialRelativePos, -8, 0.5, -8)
 
 	-- Обработчик ввода в TextBox
-	valueTextBox.FocusLost:Connect(function(enterPressed)
-		updateFromTextBox()
-	end)
+	valueTextBox.FocusLost:Connect(updateFromTextBox)
 
 	return elementFrame
 end
@@ -1715,6 +1731,7 @@ local function createCategoryFrame(categoryName)
 			{["name"] = "Traveling Merchant", ["pos"] = Vector3.new(-137.52841186523438, 3.2620537281036377, 2768.219970703125)},
 			{["name"] = "Planetary Observatory", ["pos"] = Vector3.new(394.7527770996094, 7.251010417938232, 2157.100341796875)},
 			{["name"] = "Underwater City", ["pos"] = Vector3.new(-3183.60595703125, -637.023681640625, -10305.6787109375)},
+			{["name"] = "NEW???", ["pos"] = Vector3.new()},
 			{["name"] = "Crater Island", ["pos"] = Vector3.new(969.0936279296875, 7.362037181854248, 4872.45166015625)},
 			{["name"] = "Tropical Grove", ["pos"] = Vector3.new(-2129.407958984375, 53.48722839355469, 3741.8310546875)},
 			{["name"] = "Weather Machine", ["pos"] = Vector3.new(-1519.586669921875, 6.499998569488525, 1884.587646484375)},
@@ -1773,7 +1790,7 @@ local function createCategoryFrame(categoryName)
 			title.Position = UDim2.new(0, 15, 0, 0)
 			title.BackgroundTransparency = 1
 			title.Text = featureName
-			title.TextColor3 = Color3.fromRGB(220, 220, 220)
+			title.TextColor3 = Color3.fromRGB(180, 180, 180)
 			title.TextSize = 16
 			title.Font = Enum.Font.GothamBold
 			title.TextXAlignment = Enum.TextXAlignment.Left
@@ -1785,8 +1802,8 @@ local function createCategoryFrame(categoryName)
 			dropdownButton.Name = "DropdownButton"
 			dropdownButton.Size = UDim2.new(0, 150, 0, 28)
 			dropdownButton.Position = UDim2.new(1, -165, 0.5, -14)
-			dropdownButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-			dropdownButton.BackgroundTransparency = 0
+			dropdownButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			dropdownButton.BackgroundTransparency = 0.5
 			dropdownButton.BorderSizePixel = 0
 			dropdownButton.Text = "--      ▼"
 			dropdownButton.TextColor3 = Color3.fromRGB(180, 180, 180)
@@ -1814,7 +1831,7 @@ local function createCategoryFrame(categoryName)
 			dropdownMenu.Name = "DropdownMenu"
 			dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
 			dropdownMenu.Position = UDim2.new(1, -165, 1, 15)
-			dropdownMenu.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+			dropdownMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 			dropdownMenu.BackgroundTransparency = 0.1
 			dropdownMenu.BorderSizePixel = 0
 			dropdownMenu.Visible = false
@@ -1893,11 +1910,11 @@ local function createCategoryFrame(categoryName)
 					local itemButton = Instance.new("TextButton")
 					itemButton.Name = item.name
 					itemButton.Size = UDim2.new(1, 0, 0, 40)
-					itemButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+					itemButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 					itemButton.BackgroundTransparency = 0
 					itemButton.BorderSizePixel = 0
 					itemButton.Text = item.name
-					itemButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+					itemButton.TextColor3 = Color3.fromRGB(180, 180, 180)
 					itemButton.TextSize = 12
 					itemButton.Font = Enum.Font.GothamBold
 					itemButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -1943,7 +1960,7 @@ local function createCategoryFrame(categoryName)
 				end
 
 				-- Обновляем размер ScrollFrame
-				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 32)
+				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 35)
 			end
 
 			-- Функция для открытия dropdown
@@ -1967,7 +1984,7 @@ local function createCategoryFrame(categoryName)
 				dropdownMenu.Visible = true
 				-- Устанавливаем размер на основе количества элементов
 				local playersList = getPlayerList()
-				local menuHeight = math.min(#playersList * 40, 360)
+				local menuHeight = math.min(#playersList * 35, 360)
 				dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 				openDropdowns[elementFrame] = closeDropdown
 				-- Не скрываем кнопку при открытии dropdown
@@ -2047,21 +2064,13 @@ local function createCategoryFrame(categoryName)
 		-- Noclip (вкл/выкл)
 		createToggleElement(frame, "Noclip", function(isToggled)
 			noclipEnabled = isToggled
-			showNotification("ⓘInformation", "NoClip: " .. (isToggled and "ON" or "OFF"))
-		end)
-
-		-- Speed (ползунок от 16 до 200)
-		createSliderElement(frame, "Walk Speed", 16, 200, 16, function(value)
-			currentSpeed = value
-			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-				LocalPlayer.Character.Humanoid.WalkSpeed = value
-			end
+			showNotification("ⓘ Information", "NoClip: " .. (isToggled and "ON" or "OFF"))
 		end)
 
 		-- Airwalk (вкл/выкл)
 		createToggleElement(frame, "Airwalk", function(isToggled)
 			airwalkEnabled = isToggled
-			showNotification("ⓘInformation", "Airwalk: " .. (isToggled and "ON" or "OFF"))
+			showNotification("ⓘ Information", "Airwalk: " .. (isToggled and "ON" or "OFF"))
 
 			if isToggled then
 				-- Создаем невидимую платформу
@@ -2094,28 +2103,45 @@ local function createCategoryFrame(categoryName)
 			end
 		end)
 
+		-- InfinityJump (вкл/выкл)
+		createToggleElement(frame, "InfinityJump", function(isToggled)
+			infiniteJumpEnabled = isToggled
+			showNotification("ⓘ Information", "InfinityJump: " .. (isToggled and "ON" or "OFF"))
+		end)
+
+		-- Speed (ползунок от 16 до 200)
+		createSliderElement(frame, "Walk Speed", 16, 200, 16, function(value)
+			currentSpeed = value
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+				LocalPlayer.Character.Humanoid.WalkSpeed = value
+			end
+		end)
+
 		-- Jump (ползунок от 50 до 200)
-		createSliderElement(frame, "Walk Jump", 50, 200, 50, function(value)
+		createSliderElement(frame, "Jump Power", 50, 200, 50, function(value)
 			currentJump = value
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 				LocalPlayer.Character.Humanoid.JumpPower = value
 			end
 		end)
 
-		-- InfinityJump (вкл/выкл)
-		createToggleElement(frame, "InfinityJump", function(isToggled)
-			infiniteJumpEnabled = isToggled
-			showNotification("ⓘInformation", "InfinityJump: " .. (isToggled and "ON" or "OFF"))
+		-- Ping Monitor (вкл/выкл)
+		createToggleElement(frame, "Ping Monitor", function(isToggled)
+			isPingMonitorEnabled = isToggled
+			if pingMonitorFrame then
+				pingMonitorFrame.Visible = isToggled
+			end
+			showNotification("ⓘ Information", "Ping Monitor: " .. (isToggled and "ON" or "OFF"))
 		end)
 
 		-- KeyBind (клавиша для открытия меню)
 		createKeybindButton(frame, "Keybind", function(newKeybind)
-			showNotification("ⓘInformation", "Keybind changed to: " .. newKeybind.Name)
+			showNotification("ⓘ Information", "Keybind changed to: " .. newKeybind.Name)
 		end)
 
 
 
-	elseif categoryName == "ⓘAbout" then
+	elseif categoryName == "ⓘ About" then
 
 		-- Функция для копирования текста в буфер обмена
 		local function copyToClipboard(text)
@@ -2171,11 +2197,11 @@ local function createCategoryFrame(categoryName)
 			print("Attempting to copy Discord link...")
 			if copyToClipboard(link) then
 				print("Discord link copied successfully!")
-				showNotification("ⓘInformation", "Discord link copied!")
+				showNotification("ⓘ Information", "Discord link copied!")
 			else
 				print("Failed to copy Discord link")
 				-- Показываем ссылку в уведомлении как запасной вариант
-				showNotification("ⓘLink", link)
+				showNotification("ⓘ Link", link)
 			end
 		end)
 
@@ -2183,9 +2209,9 @@ local function createCategoryFrame(categoryName)
 		createMenuButton(frame, "Copy YouTube Link", function()
 			local link = "https://www.youtube.com/@theharatio"
 			if copyToClipboard(link) then
-				showNotification("ⓘInformation", "YouTube link copied!")
+				showNotification("ⓘ Information", "YouTube link copied!")
 			else
-				showNotification("ⓘLink", link)
+				showNotification("ⓘ Link", link)
 			end
 		end)
 
@@ -2193,9 +2219,9 @@ local function createCategoryFrame(categoryName)
 		createMenuButton(frame, "Copy Twitch Link", function()
 			local link = "https://www.twitch.tv/theharatioharada"
 			if copyToClipboard(link) then
-				showNotification("ⓘInformation", "Twitch link copied!")
+				showNotification("ⓘ Information", "Twitch link copied!")
 			else
-				showNotification("ⓘLink", link)
+				showNotification("ⓘ Link", link)
 			end
 		end)
 
@@ -2203,9 +2229,9 @@ local function createCategoryFrame(categoryName)
 		createMenuButton(frame, "Copy Donation Link", function()
 			local link = "https://www.donationalerts.com/r/haratio_harada"
 			if copyToClipboard(link) then
-				showNotification("ⓘInformation", "Donation link copied!")
+				showNotification("ⓘ Information", "Donation link copied!")
 			else
-				showNotification("ⓘLink", link)
+				showNotification("ⓘ Link", link)
 			end
 		end)
 	end
@@ -2466,7 +2492,7 @@ local function toggleMenu()
 	if menuOpen then
 		-- Show welcome notification on first open
 		if firstOpen then
-			showNotification("ⓘInformation", "NexusHubX - FishIt! activated.")
+			showNotification("ⓘ Information", "NexusHubX - FishIt! activated.")
 			firstOpen = false
 		end
 
