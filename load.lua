@@ -414,7 +414,7 @@ sidebarScroll.Size = UDim2.new(1, 0, 1, -55)
 sidebarScroll.Position = UDim2.new(0, 0, 0, 55)
 sidebarScroll.BackgroundTransparency = 1
 sidebarScroll.BorderSizePixel = 0
-sidebarScroll.ScrollBarThickness = 4
+sidebarScroll.ScrollBarThickness = 0 -- Прозрачная прокрутка
 sidebarScroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
 sidebarScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 sidebarScroll.Parent = sidebar
@@ -554,7 +554,7 @@ local scrollLayout = Instance.new("UIListLayout")
 scrollLayout.Padding = UDim.new(0, 10)
 scrollLayout.Parent = scrollFrame
 -- Категории
-local categories = {"Farm", "Shop", "𖦹 Teleport", "☆ Auto Favorite", "Webhook", "🗁 Misc", "ⓘAbout"}
+local categories = {"Farm", "Shop", "𖦹 Teleport", "☆ Auto Favorite", "Webhook", "🗁 Misc", "ⓘ About"}
 local categoryButtons = {}
 local categoryFrames = {}
 local currentCategory = "Farm"
@@ -912,7 +912,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	scrollFrame.BorderSizePixel = 0
 	scrollFrame.ScrollBarThickness = 0
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 35 + 85) -- Добавили 370 пикселей дополнительного пространства внизу
+	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 35 + 82) -- Добавили 370 пикселей дополнительного пространства внизу
 	scrollFrame.ZIndex = 101 -- Увеличили ZIndex для ScrollFrame
 	scrollFrame.Parent = dropdownMenu
 
@@ -1790,7 +1790,7 @@ local function createCategoryFrame(categoryName)
 			title.Position = UDim2.new(0, 15, 0, 0)
 			title.BackgroundTransparency = 1
 			title.Text = featureName
-			title.TextColor3 = Color3.fromRGB(180, 180, 180)
+			title.TextColor3 = Color3.fromRGB(220, 220, 220)
 			title.TextSize = 16
 			title.Font = Enum.Font.GothamBold
 			title.TextXAlignment = Enum.TextXAlignment.Left
@@ -1806,7 +1806,7 @@ local function createCategoryFrame(categoryName)
 			dropdownButton.BackgroundTransparency = 0.5
 			dropdownButton.BorderSizePixel = 0
 			dropdownButton.Text = "--      ▼"
-			dropdownButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+			dropdownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 			dropdownButton.TextSize = 12
 			dropdownButton.Font = Enum.Font.GothamBold
 			dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -1830,8 +1830,8 @@ local function createCategoryFrame(categoryName)
 			local dropdownMenu = Instance.new("Frame")
 			dropdownMenu.Name = "DropdownMenu"
 			dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
-			dropdownMenu.Position = UDim2.new(1, -165, 1, 15)
-			dropdownMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+			dropdownMenu.Position = UDim2.new(1, -165, 1, 5)
+			dropdownMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 			dropdownMenu.BackgroundTransparency = 0.1
 			dropdownMenu.BorderSizePixel = 0
 			dropdownMenu.Visible = false
@@ -1909,12 +1909,12 @@ local function createCategoryFrame(categoryName)
 				for _, item in ipairs(playersList) do
 					local itemButton = Instance.new("TextButton")
 					itemButton.Name = item.name
-					itemButton.Size = UDim2.new(1, 0, 0, 40)
-					itemButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+					itemButton.Size = UDim2.new(0, 160, 0, 35)
+					itemButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 					itemButton.BackgroundTransparency = 0
 					itemButton.BorderSizePixel = 0
 					itemButton.Text = item.name
-					itemButton.TextColor3 = Color3.fromRGB(180, 180, 180)
+					itemButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 					itemButton.TextSize = 12
 					itemButton.Font = Enum.Font.GothamBold
 					itemButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -1934,13 +1934,13 @@ local function createCategoryFrame(categoryName)
 					-- Hover эффект
 					itemButton.MouseEnter:Connect(function()
 						TweenService:Create(itemButton, TweenInfo.new(0.15), {
-							BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+							BackgroundColor3 = Color3.fromRGB(80, 80, 80)
 						}):Play()
 					end)
 
 					itemButton.MouseLeave:Connect(function()
 						TweenService:Create(itemButton, TweenInfo.new(0.15), {
-							BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+							BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 						}):Play()
 					end)
 
@@ -1960,7 +1960,7 @@ local function createCategoryFrame(categoryName)
 				end
 
 				-- Обновляем размер ScrollFrame
-				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 35)
+				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 35 + 85)
 			end
 
 			-- Функция для открытия dropdown
@@ -1984,7 +1984,7 @@ local function createCategoryFrame(categoryName)
 				dropdownMenu.Visible = true
 				-- Устанавливаем размер на основе количества элементов
 				local playersList = getPlayerList()
-				local menuHeight = math.min(#playersList * 35, 360)
+				local menuHeight = math.min(#playersList * 35, 370)
 				dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 				openDropdowns[elementFrame] = closeDropdown
 				-- Не скрываем кнопку при открытии dropdown
@@ -2006,13 +2006,13 @@ local function createCategoryFrame(categoryName)
 			-- Hover эффект для dropdown button
 			dropdownButton.MouseEnter:Connect(function()
 				TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
-					BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+					BackgroundColor3 = Color3.fromRGB(110, 110, 110)
 				}):Play()
 			end)
 
 			dropdownButton.MouseLeave:Connect(function()
 				TweenService:Create(dropdownButton, TweenInfo.new(0.2), {
-					BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+					BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 				}):Play()
 			end)
 
