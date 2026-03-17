@@ -280,8 +280,8 @@ createPingMonitorUI()
 -- Create MainFrame (as in original)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 575, 0, 455)
-mainFrame.Position = UDim2.new(0.5, -287.5, 0.5, -227.5)
+mainFrame.Size = UDim2.new(0, 575, 0, 445)
+mainFrame.Position = UDim2.new(0.5, -287.5, 0.5, -222.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
@@ -558,7 +558,7 @@ local scrollLayout = Instance.new("UIListLayout")
 scrollLayout.Padding = UDim.new(0, 10)
 scrollLayout.Parent = scrollFrame
 -- Категории
-local categories = {"Farm", "Shop", "𖦹 Teleport", "☆ Auto Favorite", "Webhook", "🗁 Misc", "ⓘ About"}
+local categories = {"Farm", "Shop", "Quest", "𖦹 Teleport", "☆ Auto Favorite", "Webhook", "🗁 Misc", "ⓘ About"}
 local categoryButtons = {}
 local categoryFrames = {}
 local currentCategory = "Farm"
@@ -974,8 +974,8 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
 		-- Добавляем в список открытых dropdown
 		openDropdowns[elementFrame] = closeDropdown
-		-- Скрываем все кнопки dropdown кроме текущей
-		hideAllDropdownButtons(dropdownButton)
+		-- Не скрываем кнопки других dropdown
+		-- hideAllDropdownButtons(dropdownButton)
 	end
 
 	-- Создаем кнопки для каждого элемента
@@ -1707,6 +1707,7 @@ local function createCategoryFrame(categoryName)
 	-- UIListLayout
 	local layout = Instance.new("UIListLayout")
 	layout.Padding = UDim.new(0, 10)
+	layout.SortOrder = Enum.SortOrder.LayoutOrder
 	layout.Parent = frame
 
 	-- Добавляем toggle элементы в зависимости от категории
@@ -1727,6 +1728,174 @@ local function createCategoryFrame(categoryName)
 		end)
 
 	elseif categoryName == "Shop" then
+
+	elseif categoryName == "Quest" then
+		-- Кнопка Quest Rod (раскрывающаяся)
+		local questRodButton = Instance.new("TextButton")
+		questRodButton.Name = "QuestRodButton"
+		questRodButton.Size = UDim2.new(0.959, 0, 0, 40)
+		questRodButton.Position = UDim2.new(0.02, 0, 0, 0)
+		questRodButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		questRodButton.BackgroundTransparency = 0.5
+		questRodButton.BorderSizePixel = 0
+		questRodButton.Text = ""
+		questRodButton.Parent = frame
+
+		-- UICorner
+		local questRodCorner = Instance.new("UICorner")
+		questRodCorner.CornerRadius = UDim.new(0, 8)
+		questRodCorner.Parent = questRodButton
+
+		-- UIStroke
+		local questRodStroke = Instance.new("UIStroke")
+		questRodStroke.Color = Color3.fromRGB(60, 60, 60)
+		questRodStroke.Thickness = 1
+		questRodStroke.Parent = questRodButton
+
+		-- Заголовок
+		local questRodTitle = Instance.new("TextLabel")
+		questRodTitle.Name = "Title"
+		questRodTitle.Size = UDim2.new(1, -60, 1, 0)
+		questRodTitle.Position = UDim2.new(0, 15, 0, 0)
+		questRodTitle.BackgroundTransparency = 1
+		questRodTitle.Text = "Quest Rod"
+		questRodTitle.TextColor3 = Color3.fromRGB(220, 220, 220)
+		questRodTitle.TextSize = 16
+		questRodTitle.Font = Enum.Font.GothamBold
+		questRodTitle.TextXAlignment = Enum.TextXAlignment.Left
+		questRodTitle.TextYAlignment = Enum.TextYAlignment.Center
+		questRodTitle.Parent = questRodButton
+
+		-- Стрелка
+		local questRodArrow = Instance.new("TextLabel")
+		questRodArrow.Name = "Arrow"
+		questRodArrow.Size = UDim2.new(0, 30, 0, 30)
+		questRodArrow.Position = UDim2.new(1, -40, 0.5, -15)
+		questRodArrow.BackgroundTransparency = 1
+		questRodArrow.Text = "︾"
+		questRodArrow.TextColor3 = Color3.fromRGB(220, 220, 220)
+		questRodArrow.TextSize = 18
+		questRodArrow.Font = Enum.Font.GothamBold
+		questRodArrow.TextXAlignment = Enum.TextXAlignment.Center
+		questRodArrow.TextYAlignment = Enum.TextYAlignment.Center
+		questRodArrow.Parent = questRodButton
+
+		-- Контейнер для скрытых кнопок
+		local questRodContainer = Instance.new("Frame")
+		questRodContainer.Name = "QuestRodContainer"
+		questRodContainer.Size = UDim2.new(1, 0, 0, 0)
+		questRodContainer.BackgroundTransparency = 1
+		questRodContainer.BorderSizePixel = 0
+		questRodContainer.Visible = false
+		questRodContainer.Parent = frame
+
+		-- UIListLayout для контейнера
+		local containerLayout = Instance.new("UIListLayout")
+		containerLayout.Padding = UDim.new(0, 10)
+		containerLayout.Parent = questRodContainer
+
+		-- Quest Ghostfinn Rod
+		local ghostifnnRodLocations = {
+			{["name"] = "Give Quest", ["pos"] = Vector3.new(-3742.996337890625, -135.07394409179688, -1041.2266845703125)},
+			{["name"] = "Treasure Room", ["pos"] = Vector3.new(-3599.53759765625, -266.57379150390625, -1572.31298828125)},
+			{["name"] = "Sisiphys Statue", ["pos"] = Vector3.new(-3698.338623046875, -135.57444763183594, -1026.4268798828125)}
+		}
+
+		local ghostfinnRod = createDropdownElement(questRodContainer, "Quest Ghostifnn Rod", ghostifnnRodLocations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
+			print("Quest Ghostifnn Rod selected:", selectedLocation.name)
+		end)
+		ghostfinnRod.LayoutOrder = 1
+
+		-- Quest Element Rod
+		local elementRodLocations = {
+			{["name"] = "Give Quest", ["pos"] = Vector3.new(2095.119140625, -91.19766235351562, -700.8258666992188)},
+			{["name"] = "Ancient Jungle", ["pos"] = Vector3.new(1497.9178466796875, 7.417081832885742, -434.9872131347656)},
+			{["name"] = "Sacred Temple", ["pos"] = Vector3.new(1475.955078125, -21.849966049194336, -630.0169067382812)}
+		}
+
+		local elementRod = createDropdownElement(questRodContainer, "Quest Element Rod", elementRodLocations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
+			print("Quest Element Rod selected:", selectedLocation.name)
+		end)
+		elementRod.LayoutOrder = 2
+
+		-- Quest Diamond Rod
+		local diamondRodLocations = {
+			{["name"] = "Give Quest", ["pos"] = Vector3.new(-1769.089111328125, -222.60794067382812, 23916.931640625)},
+			{["name"] = "Coral Reefs", ["pos"] = Vector3.new(-3186.4384765625, 10.021647453308105, 2250.93359375)},
+			{["name"] = "Tropical Grove", ["pos"] = Vector3.new(-2172.08056640625, 53.48651885986328, 3634.7216796875)},
+			{["name"] = "Gemstone Ruby", ["pos"] = Vector3.new(-2172.08056640625, 53.48651885986328, 3634.7216796875)},
+			{["name"] = "Lochness Monster", ["pos"] = Vector3.new(-847.8842163085938, 18.72785758972168, 375.4066467285156)}
+		}
+
+		local diamondRod = createDropdownElement(questRodContainer, "Quest Diamond Rod", diamondRodLocations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
+			print("Quest Diamond Rod selected:", selectedLocation.name)
+		end)
+		diamondRod.LayoutOrder = 3
+
+		-- Переменная состояния
+		local isQuestRodExpanded = false
+
+		-- Hover эффект для кнопки
+		questRodButton.MouseEnter:Connect(function()
+			TweenService:Create(questRodButton, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+			}):Play()
+		end)
+
+		questRodButton.MouseLeave:Connect(function()
+			TweenService:Create(questRodButton, TweenInfo.new(0.2), {
+				BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			}):Play()
+		end)
+
+		-- Функция для обновления размера контейнера
+		local function updateContainerSize()
+			local totalHeight = 0
+			for _, child in questRodContainer:GetChildren() do
+				if child:IsA("Frame") then
+					totalHeight = totalHeight + child.Size.Y.Offset + 10
+				end
+			end
+			questRodContainer.Size = UDim2.new(1, 0, 0, totalHeight)
+		end
+
+		-- Обработчик клика
+		questRodButton.MouseButton1Click:Connect(function()
+			isQuestRodExpanded = not isQuestRodExpanded
+			questRodContainer.Visible = isQuestRodExpanded
+
+			if isQuestRodExpanded then
+				questRodArrow.Text = "︽"
+				updateContainerSize()
+			else
+				questRodArrow.Text = "︾"
+				questRodContainer.Size = UDim2.new(1, 0, 0, 0)
+			end
+		end)
+
+		-- Quest Artifact (отдельный dropdown)
+		local artifactLocations = {
+			{["name"] = "Daimond Artifact", ["pos"] = Vector3.new(1836.8253173828125, 6.624998569488525, -288.6299133300781)},
+			{["name"] = "Crescent Artifact", ["pos"] = Vector3.new(1405.870361328125, 6.624998569488525, 117.4216079711914)},
+			{["name"] = "Arrow Artifact", ["pos"] = Vector3.new(881.4047241210938, 6.624998569488525, -359.13720703125)},
+			{["name"] = "Hourglass Artifact", ["pos"] = Vector3.new(1488.3018798828125, 6.624998569488525, -849.4012451171875)}
+		}
+
+		createDropdownElement(frame, "Quest Artifact", artifactLocations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
+			print("Quest Artifact selected:", selectedLocation.name)
+		end)
 
 	elseif categoryName == "𖦹 Teleport" then
 		-- Локации для телепортации
@@ -2065,19 +2234,19 @@ local function createCategoryFrame(categoryName)
 		end)
 
 	elseif categoryName == "🗁 Misc" then
-		-- Noclip (вкл/выкл)
-		createToggleElement(frame, "Noclip", function(isToggled)
+		-- 1. Noclip
+		local noclipElement = createToggleElement(frame, "Noclip", function(isToggled)
 			noclipEnabled = isToggled
 			showNotification("ⓘ Information", "NoClip: " .. (isToggled and "ON" or "OFF"))
 		end)
+		noclipElement.LayoutOrder = 1
 
-		-- Airwalk (вкл/выкл)
-		createToggleElement(frame, "Airwalk", function(isToggled)
+		-- 2. Airwalk
+		local airwalkElement = createToggleElement(frame, "Airwalk", function(isToggled)
 			airwalkEnabled = isToggled
 			showNotification("ⓘ Information", "Airwalk: " .. (isToggled and "ON" or "OFF"))
 
 			if isToggled then
-				-- Создаем невидимую платформу
 				airwalkPart = Instance.new("Part")
 				airwalkPart.Name = "AirwalkPart"
 				airwalkPart.Size = Vector3.new(5, 1, 5)
@@ -2086,7 +2255,6 @@ local function createCategoryFrame(categoryName)
 				airwalkPart.Anchored = true
 				airwalkPart.Parent = workspace
 
-				-- Обновляем позицию платформы
 				airwalkConnection = RunService.RenderStepped:Connect(function()
 					if airwalkEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
 						local hrp = LocalPlayer.Character.HumanoidRootPart
@@ -2094,54 +2262,58 @@ local function createCategoryFrame(categoryName)
 					end
 				end)
 			else
-				-- Отключаем connection
 				if airwalkConnection then
 					airwalkConnection:Disconnect()
 					airwalkConnection = nil
 				end
-				-- Удаляем платформу
 				if airwalkPart then
 					airwalkPart:Destroy()
 					airwalkPart = nil
 				end
 			end
 		end)
+		airwalkElement.LayoutOrder = 2
 
-		-- InfinityJump (вкл/выкл)
-		createToggleElement(frame, "InfinityJump", function(isToggled)
+		-- 3. InfinityJump
+		local infinityJumpElement = createToggleElement(frame, "InfinityJump", function(isToggled)
 			infiniteJumpEnabled = isToggled
 			showNotification("ⓘ Information", "InfinityJump: " .. (isToggled and "ON" or "OFF"))
 		end)
+		infinityJumpElement.LayoutOrder = 3
 
-		-- Speed (ползунок от 16 до 200)
-		createSliderElement(frame, "Walk Speed", 16, 200, 16, function(value)
+		-- 4. Walk Speed
+		local walkSpeedElement = createSliderElement(frame, "Walk Speed", 16, 200, 16, function(value)
 			currentSpeed = value
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 				LocalPlayer.Character.Humanoid.WalkSpeed = value
 			end
 		end)
+		walkSpeedElement.LayoutOrder = 4
 
-		-- Jump (ползунок от 50 до 200)
-		createSliderElement(frame, "Jump Power", 50, 200, 50, function(value)
+		-- 5. Jump Power
+		local jumpPowerElement = createSliderElement(frame, "Jump Power", 50, 200, 50, function(value)
 			currentJump = value
 			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
 				LocalPlayer.Character.Humanoid.JumpPower = value
 			end
 		end)
+		jumpPowerElement.LayoutOrder = 5
 
-		-- Ping Monitor (вкл/выкл)
-		createToggleElement(frame, "Ping Monitor", function(isToggled)
+		-- 6. Ping Monitor
+		local pingMonitorElement = createToggleElement(frame, "Ping Monitor", function(isToggled)
 			isPingMonitorEnabled = isToggled
 			if pingMonitorFrame then
 				pingMonitorFrame.Visible = isToggled
 			end
 			showNotification("ⓘ Information", "Ping Monitor: " .. (isToggled and "ON" or "OFF"))
 		end)
+		pingMonitorElement.LayoutOrder = 6
 
-		-- KeyBind (клавиша для открытия меню)
-		createKeybindButton(frame, "Keybind", function(newKeybind)
+		-- 7. Keybind
+		local keybindElement = createKeybindButton(frame, "Keybind", function(newKeybind)
 			showNotification("ⓘ Information", "Keybind changed to: " .. newKeybind.Name)
 		end)
+		keybindElement.LayoutOrder = 7
 
 
 
@@ -2484,7 +2656,7 @@ local firstOpen = true -- Flag for first open
 
 -- Variables for maximizing
 local isMaximized = false
-local originalSize = UDim2.new(0, 575, 0, 455)
+local originalSize = UDim2.new(0, 575, 0, 445)
 local originalPosition = UDim2.new(0.5, -350, 0.5, -250)
 local maximizedSize = UDim2.new(1, -40, 1, -40)
 local maximizedPosition = UDim2.new(0, 20, 0, 20)
@@ -2503,7 +2675,7 @@ local function toggleMenu()
 		-- Opening animation
 		mainFrame.Size = UDim2.new(0, 0, 0, 0)
 		TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back), {
-			Size = UDim2.new(0, 575, 0, 455)
+			Size = UDim2.new(0, 575, 0, 445)
 		}):Play()
 	else
 		-- Closing animation
