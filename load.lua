@@ -270,6 +270,10 @@ local function createPingMonitorUI()
 	pingValueLabel.Font = Enum.Font.Gotham
 	pingValueLabel.TextXAlignment = Enum.TextXAlignment.Center
 	pingValueLabel.Parent = pingMonitorFrame
+
+	-- Make Ping Monitor draggable
+	pingMonitorFrame.Active = true
+	pingMonitorFrame.Draggable = true
 end
 -- Create Ping Monitor UI
 createPingMonitorUI()
