@@ -887,8 +887,19 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	-- Выпадающий список (dropdown menu) - открывается ВНИЗ с высоким ZIndex
 	local dropdownMenu = Instance.new("Frame")
 	dropdownMenu.Name = "DropdownMenu"
-	dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
-	dropdownMenu.Position = UDim2.new(1, -165, 1, 5) -- Позиция ниже кнопки
+	-- Автоматически определяем ширину на основе самого длинного названия
+	local maxTextWidth = 0
+	for _, item in ipairs(items) do
+		local text = item.name or tostring(item)
+		-- Примерная ширина: 7 пикселей на символ + отступы
+		local textWidth = #text * 7 + 30
+		if textWidth > maxTextWidth then
+			maxTextWidth = textWidth
+		end
+	end
+	local menuWidth = math.max(150, math.min(maxTextWidth, 250)) -- Минимум 150, максимум 250
+	dropdownMenu.Size = UDim2.new(0, menuWidth, 0, 0)
+	dropdownMenu.Position = UDim2.new(1, -menuWidth - 15, 1, 5) -- Позиция ниже кнопки
 	dropdownMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	dropdownMenu.BackgroundTransparency = 0.1
 	dropdownMenu.BorderSizePixel = 0
@@ -914,9 +925,8 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	scrollFrame.Position = UDim2.new(0, 0, 0, 0)
 	scrollFrame.BackgroundTransparency = 1
 	scrollFrame.BorderSizePixel = 0
-	scrollFrame.ScrollBarThickness = 0
+	scrollFrame.ScrollBarThickness = 4 -- Показываем скроллбар если нужно
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #items * 35 + 82) -- Добавили 370 пикселей дополнительного пространства внизу
 	scrollFrame.ZIndex = 101 -- Увеличили ZIndex для ScrollFrame
 	scrollFrame.Parent = dropdownMenu
 
@@ -946,7 +956,6 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	local function closeDropdown()
 		isDropdownOpen = false
 		dropdownMenu.Visible = false
-		dropdownMenu.Size = UDim2.new(0, 120, 0, 0)
 		-- Удаляем из списка открытых dropdown
 		openDropdowns[elementFrame] = nil
 		-- Показываем все кнопки dropdown
@@ -969,9 +978,16 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 
 		isDropdownOpen = true
 		dropdownMenu.Visible = true
-		-- Устанавливаем размер на основе количества элементов
-		local menuHeight = math.min(#items * 35, 370) -- Максимум 370 пикселей высоты
-		dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
+		-- Автоматически настраиваем размер на основе количества элементов
+		local itemHeight = 35 -- Высота одной кнопки
+		local padding = 2 -- Отступ между кнопками
+		local totalHeight = #items * (itemHeight + padding) + 10 -- +10 для отступов сверху и снизу
+		local maxHeight = 400 -- Максимальная высота dropdown
+		local menuHeight = math.min(totalHeight, maxHeight)
+		-- Обновляем CanvasSize для ScrollFrame
+		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+		-- Сохраняем ширину, только обновляем высоту
+		dropdownMenu.Size = UDim2.new(0, dropdownMenu.Size.X.Offset, 0, menuHeight)
 		-- Добавляем в список открытых dropdown
 		openDropdowns[elementFrame] = closeDropdown
 		-- Не скрываем кнопки других dropdown
@@ -982,7 +998,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	for index, item in ipairs(items) do
 		local itemButton = Instance.new("TextButton")
 		itemButton.Name = item.name or tostring(item)
-		itemButton.Size = UDim2.new(0, 160, 0, 35)
+		itemButton.Size = UDim2.new(1, 0, 0, 35) -- Ширина 100% от родителя
 		itemButton.LayoutOrder = index -- Устанавливаем порядок
 		itemButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 		itemButton.BackgroundTransparency = 0
@@ -1477,7 +1493,7 @@ local function createPlayerMenu(parent)
 
 	return menuFrame
 end
--- Функция для создания slider элемента
+-- Функция для создания slider элемента (целые числа)
 local function createSliderElement(parent, featureName, minValue, maxValue, defaultValue, callback)
 	local elementFrame = Instance.new("Frame")
 	elementFrame.Name = featureName
@@ -1681,6 +1697,212 @@ local function createSliderElement(parent, featureName, minValue, maxValue, defa
 
 	return elementFrame
 end
+
+-- Функция для создания slider элемента (десятичные числа)
+local function createDecimalSliderElement(parent, featureName, minValue, maxValue, defaultValue, decimalPlaces, callback)
+	local elementFrame = Instance.new("Frame")
+	elementFrame.Name = featureName
+	elementFrame.Size = UDim2.new(0.959, 0, 0, 60)
+	elementFrame.Position = UDim2.new(0.02, 0, 0, 0)
+	elementFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	elementFrame.BackgroundTransparency = 0.5
+	elementFrame.BorderSizePixel = 0
+	elementFrame.BorderColor3 = Color3.fromRGB(60, 60, 60)
+	elementFrame.Parent = parent
+
+	-- UICorner
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = elementFrame
+
+	-- UIStroke
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(60, 60, 60)
+	stroke.Thickness = 1
+	stroke.Parent = elementFrame
+
+	-- Заголовок
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.new(1, -100, 0, 25)
+	title.Position = UDim2.new(0, 15, 0, 5)
+	title.BackgroundTransparency = 1
+	title.Text = featureName
+	title.TextColor3 = Color3.fromRGB(220, 220, 220)
+	title.TextSize = 16
+	title.Font = Enum.Font.GothamBold
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.TextYAlignment = Enum.TextYAlignment.Center
+	title.Parent = elementFrame
+
+	-- TextBox для ручного ввода
+	local valueTextBox = Instance.new("TextBox")
+	valueTextBox.Name = "ValueTextBox"
+	valueTextBox.Size = UDim2.new(0, 50, 0, 25)
+	valueTextBox.Position = UDim2.new(1, -90, 0, 5)
+	valueTextBox.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	valueTextBox.BackgroundTransparency = 1
+	valueTextBox.BorderSizePixel = 0
+	valueTextBox.Text = string.format("%." .. decimalPlaces .. "f", defaultValue)
+	valueTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+	valueTextBox.TextSize = 14
+	valueTextBox.Font = Enum.Font.GothamBold
+	valueTextBox.TextXAlignment = Enum.TextXAlignment.Right
+	valueTextBox.PlaceholderText = ""
+	valueTextBox.ClearTextOnFocus = false
+	valueTextBox.Parent = elementFrame
+
+	-- UICorner для TextBox
+	local textBoxCorner = Instance.new("UICorner")
+	textBoxCorner.CornerRadius = UDim.new(0, 4)
+	textBoxCorner.Parent = valueTextBox
+
+	-- Slider track
+	local sliderTrack = Instance.new("ImageButton")
+	sliderTrack.Name = "SliderTrack"
+	sliderTrack.Size = UDim2.new(1, -30, 0, 8)
+	sliderTrack.Position = UDim2.new(0, 15, 1, -20)
+	sliderTrack.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	sliderTrack.BorderSizePixel = 0
+	sliderTrack.Image = ""
+	sliderTrack.Parent = elementFrame
+
+	-- UICorner для track
+	local trackCorner = Instance.new("UICorner")
+	trackCorner.CornerRadius = UDim.new(0, 4)
+	trackCorner.Parent = sliderTrack
+
+	-- Slider fill
+	local sliderFill = Instance.new("Frame")
+	sliderFill.Name = "SliderFill"
+	sliderFill.Size = UDim2.new((defaultValue - minValue) / (maxValue - minValue), 0, 1, 0)
+	sliderFill.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+	sliderFill.BorderSizePixel = 0
+	sliderFill.Parent = sliderTrack
+
+	-- UICorner для fill
+	local fillCorner = Instance.new("UICorner")
+	fillCorner.CornerRadius = UDim.new(0, 4)
+	fillCorner.Parent = sliderFill
+
+	-- Slider knob
+	local sliderKnob = Instance.new("ImageButton")
+	sliderKnob.Name = "SliderKnob"
+	sliderKnob.Size = UDim2.new(0, 16, 0, 16)
+	sliderKnob.Position = UDim2.new((defaultValue - minValue) / (maxValue - minValue), -8, 0.5, -8)
+	sliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	sliderKnob.BorderSizePixel = 0
+	sliderKnob.Image = ""
+	sliderKnob.Parent = sliderTrack
+
+	-- UICorner для knob
+	local knobCorner = Instance.new("UICorner")
+	knobCorner.CornerRadius = UDim.new(0, 8)
+	knobCorner.Parent = sliderKnob
+
+	-- Переменная состояния
+	local currentValue = defaultValue
+	local isDragging = false
+	local dragConnection = nil
+	local releaseConnection = nil
+
+	-- Функция для остановки перетаскивания
+	local function stopDrag()
+		isDragging = false
+		if dragConnection then
+			dragConnection:Disconnect()
+			dragConnection = nil
+		end
+		if releaseConnection then
+			releaseConnection:Disconnect()
+			releaseConnection = nil
+		end
+	end
+
+	-- Функция для обновления slider
+	local function updateSlider(mouseX)
+		local trackPos = sliderTrack.AbsolutePosition.X
+		local trackSize = sliderTrack.AbsoluteSize.X
+		local relativePos = math.clamp((mouseX - trackPos) / trackSize, 0, 1)
+
+		-- Вычисляем значение с учетом десятичных знаков
+		local rawValue = minValue + relativePos * (maxValue - minValue)
+		currentValue = tonumber(string.format("%." .. decimalPlaces .. "f", rawValue))
+		valueTextBox.Text = string.format("%." .. decimalPlaces .. "f", currentValue)
+		sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+		sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
+
+		callback(currentValue)
+		return relativePos
+	end
+
+	-- Функция для обновления значения из TextBox
+	local function updateFromTextBox()
+		local inputText = valueTextBox.Text
+		local newValue = tonumber(inputText)
+
+		if newValue then
+			-- Ограничиваем значение в пределах диапазона
+			newValue = math.clamp(newValue, minValue, maxValue)
+			-- Форматируем с нужным количеством знаков
+			currentValue = tonumber(string.format("%." .. decimalPlaces .. "f", newValue))
+
+			-- Обновляем UI
+			valueTextBox.Text = string.format("%." .. decimalPlaces .. "f", currentValue)
+
+			-- Обновляем позицию слайдера
+			local relativePos = (currentValue - minValue) / (maxValue - minValue)
+			sliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+			sliderKnob.Position = UDim2.new(relativePos, -8, 0.5, -8)
+
+			callback(currentValue)
+		end
+	end
+
+	-- Функция для начала перетаскивания
+	local function startDrag()
+		-- Если уже перетаскиваем, не создаём новые соединения
+		if isDragging then return end
+
+		isDragging = true
+
+		-- Используем RenderStepped для плавного обновления
+		dragConnection = RunService.RenderStepped:Connect(function()
+			if isDragging then
+				local mousePos = UserInputService:GetMouseLocation()
+				updateSlider(mousePos.X)
+			end
+		end)
+
+		-- Создаем обработчик отпускания кнопки (БЕЗ проверки gameProcessed)
+		releaseConnection = UserInputService.InputEnded:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1 then
+				stopDrag()
+			end
+		end)
+	end
+
+	-- Mouse events
+	sliderKnob.MouseButton1Down:Connect(startDrag)
+
+	sliderTrack.MouseButton1Down:Connect(function()
+		local mousePos = UserInputService:GetMouseLocation()
+		updateSlider(mousePos.X)
+		startDrag()
+	end)
+
+	-- Инициализация ползунка
+	local initialRelativePos = (defaultValue - minValue) / (maxValue - minValue)
+	currentValue = defaultValue
+	valueTextBox.Text = string.format("%." .. decimalPlaces .. "f", currentValue)
+	sliderFill.Size = UDim2.new(initialRelativePos, 0, 1, 0)
+	sliderKnob.Position = UDim2.new(initialRelativePos, -8, 0.5, -8)
+
+	-- Обработчик ввода в TextBox
+	valueTextBox.FocusLost:Connect(updateFromTextBox)
+
+	return elementFrame
+end
 local function createCategoryFrame(categoryName)
 	local frame = Instance.new("Frame")
 	frame.Name = categoryName .. "Frame"
@@ -1712,19 +1934,34 @@ local function createCategoryFrame(categoryName)
 
 	-- Добавляем toggle элементы в зависимости от категории
 	if categoryName == "Farm" then
+		-- Auto Fish toggle
 		createToggleElement(frame, "Auto Fish", function(isToggled)
-			-- Auto Fish functionality
+			-- TODO: Add Auto Fish logic
 			print("Auto Fish:", isToggled)
 		end)
 
-		createToggleElement(frame, "Auto Reel", function(isToggled)
-			-- Auto Reel functionality
-			print("Auto Reel:", isToggled)
+		-- Caught Delay slider (0.00 - 8.00)
+		createDecimalSliderElement(frame, "Caught Delay", 0, 8, 0, 2, function(value)
+			-- TODO: Add Caught Delay logic
+			print("Caught Delay:", value)
 		end)
 
-		createToggleElement(frame, "Auto Cast", function(isToggled)
-			-- Auto Cast functionality
-			print("Auto Cast:", isToggled)
+		-- Recast Delay slider (0.00 - 8.00)
+		createDecimalSliderElement(frame, "Recast Delay", 0, 8, 0, 2, function(value)
+			-- TODO: Add Recast Delay logic
+			print("Recast Delay:", value)
+		end)
+
+		-- Auto Sell toggle
+		createToggleElement(frame, "Auto Sell", function(isToggled)
+			-- TODO: Add Auto Sell logic
+			print("Auto Sell:", isToggled)
+		end)
+
+		-- Auto Sell Delay slider (1 - 30 minutes)
+		createSliderElement(frame, "Auto Sell Delay (min)", 1, 30, 1, function(value)
+			-- TODO: Add Auto Sell Delay logic
+			print("Auto Sell Delay:", value)
 		end)
 
 	elseif categoryName == "Shop" then
@@ -1772,7 +2009,7 @@ local function createCategoryFrame(categoryName)
 		questRodArrow.Size = UDim2.new(0, 30, 0, 30)
 		questRodArrow.Position = UDim2.new(1, -40, 0.5, -15)
 		questRodArrow.BackgroundTransparency = 1
-		questRodArrow.Text = "︾"
+		questRodArrow.Text = "﹀"
 		questRodArrow.TextColor3 = Color3.fromRGB(220, 220, 220)
 		questRodArrow.TextSize = 18
 		questRodArrow.Font = Enum.Font.GothamBold
@@ -1874,10 +2111,10 @@ local function createCategoryFrame(categoryName)
 			questRodContainer.Visible = isQuestRodExpanded
 
 			if isQuestRodExpanded then
-				questRodArrow.Text = "︽"
+				questRodArrow.Text = "︿"
 				updateContainerSize()
 			else
-				questRodArrow.Text = "︾"
+				questRodArrow.Text = "﹀"
 				questRodContainer.Size = UDim2.new(1, 0, 0, 0)
 			end
 		end)
@@ -2010,6 +2247,19 @@ local function createCategoryFrame(categoryName)
 			dropdownMenu.Visible = false
 			dropdownMenu.ZIndex = 100
 			dropdownMenu.Parent = elementFrame
+			
+			-- Функция для расчёта ширины на основе списка игроков
+			local function calculateMenuWidth(playersList)
+				local maxTextWidth = 0
+				for _, player in ipairs(playersList) do
+					local text = player.name or tostring(player)
+					local textWidth = #text * 7 + 30
+					if textWidth > maxTextWidth then
+						maxTextWidth = textWidth
+					end
+				end
+				return math.max(150, math.min(maxTextWidth, 250))
+			end
 
 			-- UICorner для меню
 			local menuCorner = Instance.new("UICorner")
@@ -2033,6 +2283,12 @@ local function createCategoryFrame(categoryName)
 			scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
 			scrollFrame.ZIndex = 101
 			scrollFrame.Parent = dropdownMenu
+			
+			-- UIPadding для ScrollFrame
+			local scrollPadding = Instance.new("UIPadding")
+			scrollPadding.PaddingTop = UDim.new(0, 5)
+			scrollPadding.PaddingBottom = UDim.new(0, 5)
+			scrollPadding.Parent = scrollFrame
 
 			-- UIListLayout
 			local layout = Instance.new("UIListLayout")
@@ -2048,7 +2304,6 @@ local function createCategoryFrame(categoryName)
 			local function closeDropdown()
 				isDropdownOpen = false
 				dropdownMenu.Visible = false
-				dropdownMenu.Size = UDim2.new(0, 120, 0, 0)
 				openDropdowns[elementFrame] = nil
 				showAllDropdownButtons()
 				dropdownButton.Visible = true -- Явно показываем кнопку
@@ -2082,7 +2337,7 @@ local function createCategoryFrame(categoryName)
 				for _, item in ipairs(playersList) do
 					local itemButton = Instance.new("TextButton")
 					itemButton.Name = item.name
-					itemButton.Size = UDim2.new(0, 160, 0, 35)
+					itemButton.Size = UDim2.new(1, 0, 0, 35) -- Ширина 100% от родителя
 					itemButton.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 					itemButton.BackgroundTransparency = 0
 					itemButton.BorderSizePixel = 0
@@ -2133,7 +2388,13 @@ local function createCategoryFrame(categoryName)
 				end
 
 				-- Обновляем размер ScrollFrame
-				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, #playersList * 35 + 85)
+				local itemHeight = 35
+				local padding = 2
+				local totalHeight = #playersList * (itemHeight + padding) + 10
+				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
+				
+				-- Возвращаем количество игроков для расчёта высоты меню
+				return #playersList
 			end
 
 			-- Функция для открытия dropdown
@@ -2155,10 +2416,19 @@ local function createCategoryFrame(categoryName)
 
 				isDropdownOpen = true
 				dropdownMenu.Visible = true
-				-- Устанавливаем размер на основе количества элементов
+				-- Обновляем список игроков и получаем количество
+				local playerCount = updatePlayerDropdown()
+				-- Автоматически настраиваем размер на основе количества элементов
+				local itemHeight = 35
+				local padding = 2
+				local totalHeight = playerCount * (itemHeight + padding) + 10
+				local maxHeight = 400
+				local menuHeight = math.min(totalHeight, maxHeight)
+				-- Рассчитываем ширину на основе имён игроков
 				local playersList = getPlayerList()
-				local menuHeight = math.min(#playersList * 35, 370)
-				dropdownMenu.Size = UDim2.new(0, 150, 0, menuHeight)
+				local menuWidth = calculateMenuWidth(playersList)
+				dropdownMenu.Size = UDim2.new(0, menuWidth, 0, menuHeight)
+				dropdownMenu.Position = UDim2.new(1, -menuWidth - 15, 1, 5)
 				openDropdowns[elementFrame] = closeDropdown
 				-- Не скрываем кнопку при открытии dropdown
 				-- hideAllDropdownButtons(dropdownButton)
