@@ -11,16 +11,40 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
 local GuiService = game:GetService("GuiService")
 local camera = workspace.CurrentCamera
-local mouse = Players.LocalPlayer:GetMouse()
 
--- Local Player
+-- Mouse (с поддержкой инжекта)
+local mouse = nil
+local function getMouse()
+	if not mouse then
+		local success, result = pcall(function()
+			return Players.LocalPlayer:GetMouse()
+		end)
+		if success then
+			mouse = result
+		end
+	end
+	return mouse
+end
+mouse = getMouse()
+
+-- Local Player (с поддержкой инжекта)
 local LocalPlayer = Players.LocalPlayer
 if not LocalPlayer then
-	LocalPlayer = Players:WaitForChild("LocalPlayer")
+	-- При инжекте ждём появления LocalPlayer
+	LocalPlayer = Players:WaitForChild("LocalPlayer", 10)
+	if not LocalPlayer then
+		warn("Failed to get LocalPlayer")
+		return
+	end
 end
-local Character = LocalPlayer.Character or LocalPlayer:WaitForChild("Character")
-local Humanoid = Character and Character:FindFirstChild("Humanoid")
-local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+
+-- Ждём Character (важно при инжекте)
+local Character = LocalPlayer.Character
+if not Character then
+	Character = LocalPlayer.CharacterAdded:Wait()
+end
+local Humanoid = Character:WaitForChild("Humanoid", 5)
+local RootPart = Character:WaitForChild("HumanoidRootPart", 5)
 
 -- Variables for functions
 local noclipEnabled = false
@@ -36,7 +60,8 @@ local isPotatoGraphicsEnabled = false
 local isChangingKeybind = false
 local pingMonitorFrame = nil
 local pingValueLabel = nil
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local playerGui = LocalPlayer:WaitForChild("PlayerGui") or LocalPlayer.PlayerGui
+
 -- Color scheme (as in original)
 local Colors = {
 	Background = Color3.fromRGB(15, 15, 15),
@@ -57,7 +82,17 @@ screenGui.Name = "NexusHubX_FishIt"
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.AutoLocalize = false -- Disable automatic localization
-screenGui.Parent = playerGui
+-- При инжекте используем PlayerGui напрямую
+if LocalPlayer:FindFirstChild("PlayerGui") then
+	screenGui.Parent = LocalPlayer.PlayerGui
+else
+	-- Если PlayerGui еще не существует, ждём его
+	LocalPlayer.ChildAdded:Connect(function(child)
+		if child.Name == "PlayerGui" then
+			screenGui.Parent = child
+		end
+	end)
+end
 
 -- Notification System
 local notificationContainer = nil
@@ -72,7 +107,17 @@ local function createNotificationContainer()
 	notificationContainer.Name = "NotificationContainer"
 	notificationContainer.ResetOnSpawn = false
 	notificationContainer.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	notificationContainer.Parent = playerGui
+	-- При инжекте используем PlayerGui напрямую
+	if LocalPlayer:FindFirstChild("PlayerGui") then
+		notificationContainer.Parent = LocalPlayer.PlayerGui
+	else
+		-- Если PlayerGui еще не существует, ждём его
+		LocalPlayer.ChildAdded:Connect(function(child)
+			if child.Name == "PlayerGui" then
+				notificationContainer.Parent = child
+			end
+		end)
+	end
 
 	return notificationContainer
 end
@@ -819,7 +864,7 @@ local function showAllDropdownButtons()
 end
 
 -- Функция для создания выпадающего списка (dropdown)
-local function createDropdownElement(parent, featureName, items, onSelectCallback)
+local function createDropdownElement(parent, featureName, items, onSelectCallback, customWidth)
 	local elementFrame = Instance.new("Frame")
 	elementFrame.Name = featureName
 	elementFrame.Size = UDim2.new(0.959, 0, 0, 40)
@@ -887,25 +932,15 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	-- Выпадающий список (dropdown menu) - открывается ВНИЗ с высоким ZIndex
 	local dropdownMenu = Instance.new("Frame")
 	dropdownMenu.Name = "DropdownMenu"
-	-- Автоматически определяем ширину на основе самого длинного названия
-	local maxTextWidth = 0
-	for _, item in ipairs(items) do
-		local text = item.name or tostring(item)
-		-- Примерная ширина: 7 пикселей на символ + отступы
-		local textWidth = #text * 7 + 30
-		if textWidth > maxTextWidth then
-			maxTextWidth = textWidth
-		end
-	end
-	local menuWidth = math.max(150, math.min(maxTextWidth, 250)) -- Минимум 150, максимум 250
-	dropdownMenu.Size = UDim2.new(0, menuWidth, 0, 0)
-	dropdownMenu.Position = UDim2.new(1, -menuWidth - 15, 1, 5) -- Позиция ниже кнопки
+	-- Ширина будет автоматически настраиваться под кнопку при открытии
+	dropdownMenu.Size = UDim2.new(0, 150, 0, 0) -- Начальная ширина, изменится при открытии
+	-- Позиция будет обновляться при открытии
 	dropdownMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	dropdownMenu.BackgroundTransparency = 0.1
 	dropdownMenu.BorderSizePixel = 0
 	dropdownMenu.Visible = false
-	dropdownMenu.ZIndex = 200 -- Очень высокий ZIndex
-	dropdownMenu.Parent = elementFrame
+	dropdownMenu.ZIndex = 10000 -- Очень высокий ZIndex для dropdown меню
+	dropdownMenu.Parent = mainFrame -- Перемещаем в mainFrame для корректного отображения поверх всего
 
 	-- UICorner для меню
 	local menuCorner = Instance.new("UICorner")
@@ -927,7 +962,8 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 	scrollFrame.BorderSizePixel = 0
 	scrollFrame.ScrollBarThickness = 4 -- Показываем скроллбар если нужно
 	scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-	scrollFrame.ZIndex = 101 -- Увеличили ZIndex для ScrollFrame
+	scrollFrame.ScrollBarImageTransparency = 0.8 -- Прозрачный ползунок
+	scrollFrame.ZIndex = 1001 -- Очень высокий ZIndex для ScrollFrame
 	scrollFrame.Parent = dropdownMenu
 
 	-- Увеличиваем скорость прокрутки через колёсико мыши
@@ -986,8 +1022,18 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		local menuHeight = math.min(totalHeight, maxHeight)
 		-- Обновляем CanvasSize для ScrollFrame
 		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-		-- Сохраняем ширину, только обновляем высоту
-		dropdownMenu.Size = UDim2.new(0, dropdownMenu.Size.X.Offset, 0, menuHeight)
+		-- Автоматически настраиваем ширину под кнопку или используем заданную ширину
+		local buttonWidth = dropdownButton.AbsoluteSize.X
+		local menuWidth = customWidth or math.max(150, buttonWidth) -- Используем customWidth если указан, иначе автоматический расчёт
+		-- Обновляем размер dropdown
+		dropdownMenu.Size = UDim2.new(0, menuWidth, 0, menuHeight)
+		-- Вычисляем позицию относительно mainFrame
+		local buttonAbsolutePos = dropdownButton.AbsolutePosition
+		local mainFrameAbsolutePos = mainFrame.AbsolutePosition
+		local relativeX = buttonAbsolutePos.X - mainFrameAbsolutePos.X
+		local relativeY = buttonAbsolutePos.Y - mainFrameAbsolutePos.Y
+		-- Позиционируем dropdown под кнопкой
+		dropdownMenu.Position = UDim2.new(0, relativeX, 0, relativeY + dropdownButton.AbsoluteSize.Y + 5)
 		-- Добавляем в список открытых dropdown
 		openDropdowns[elementFrame] = closeDropdown
 		-- Не скрываем кнопки других dropdown
@@ -1008,7 +1054,7 @@ local function createDropdownElement(parent, featureName, items, onSelectCallbac
 		itemButton.TextSize = 12
 		itemButton.Font = Enum.Font.GothamBold
 		itemButton.TextXAlignment = Enum.TextXAlignment.Left
-		itemButton.ZIndex = 101 -- Увеличили ZIndex для кнопок
+		itemButton.ZIndex = 1002 -- Очень высокий ZIndex для кнопок
 		itemButton.Parent = scrollFrame
 
 		-- UICorner
@@ -1172,6 +1218,8 @@ local function createKeybindButton(parent, featureName, callback)
 
 	return elementFrame
 end
+
+
 -- Функция для создания подменю с телепортами
 local function createTeleportMenu(parent, locations, title)
 	-- Создаем фрейм подменю
@@ -1952,19 +2000,32 @@ local function createCategoryFrame(categoryName)
 			print("Recast Delay:", value)
 		end)
 
-		-- Auto Sell toggle
-		createToggleElement(frame, "Auto Sell", function(isToggled)
-			-- TODO: Add Auto Sell logic
-			print("Auto Sell:", isToggled)
-		end)
-
-		-- Auto Sell Delay slider (1 - 30 minutes)
-		createSliderElement(frame, "Auto Sell Delay (min)", 1, 30, 1, function(value)
-			-- TODO: Add Auto Sell Delay logic
-			print("Auto Sell Delay:", value)
-		end)
-
 	elseif categoryName == "Shop" then
+		-- Кнопка Shop (по середине)
+		createMenuButton(frame, "Shop", function()
+			-- TODO: Add Shop menu logic
+			print("Shop button clicked")
+		end)
+
+		-- Shop Rod dropdown
+		local shopRodLocations = {
+			{["name"] = "Coming Soon", ["pos"] = Vector3.new(0, 0, 0)}
+		}
+
+		createDropdownElement(frame, "Shop Rod", shopRodLocations, function(selectedLocation)
+			-- TODO: Add Shop Rod logic
+			print("Shop Rod selected:", selectedLocation.name)
+		end)
+
+		-- Shop Bait dropdown
+		local shopBaitLocations = {
+			{["name"] = "Coming Soon", ["pos"] = Vector3.new(0, 0, 0)}
+		}
+
+		createDropdownElement(frame, "Shop Bait", shopBaitLocations, function(selectedLocation)
+			-- TODO: Add Shop Bait logic
+			print("Shop Bait selected:", selectedLocation.name)
+		end)
 
 	elseif categoryName == "Quest" then
 		-- Кнопка Quest Rod (раскрывающаяся)
@@ -2061,7 +2122,7 @@ local function createCategoryFrame(categoryName)
 		end)
 		elementRod.LayoutOrder = 2
 
-		-- Quest Diamond Rod
+		-- Quest
 		local diamondRodLocations = {
 			{["name"] = "Give Quest", ["pos"] = Vector3.new(-1769.089111328125, -222.60794067382812, 23916.931640625)},
 			{["name"] = "Coral Reefs", ["pos"] = Vector3.new(-3186.4384765625, 10.021647453308105, 2250.93359375)},
@@ -2134,6 +2195,21 @@ local function createCategoryFrame(categoryName)
 			print("Quest Artifact selected:", selectedLocation.name)
 		end)
 
+		-- Quest Leviathan
+		local leviathanLocations = {
+			{["name"] = "Give Quest", ["pos"] = Vector3.new(3438.30908203125, -287.8448181152344, 3404.91552734375)},
+			{["name"] = "Burntflame Relic", ["pos"] = Vector3.new(1009.3289184570312, 21.849464416503906, 5073.736328125)},
+			{["name"] = "Sunken Eye Relic", ["pos"] = Vector3.new(-2043.0665283203125, 6.2680158615112305, 3669.470947265625)}, --- После изменить
+			{["name"] = "Blacktide Relic", ["pos"] = Vector3.new(-3640.98974609375, -136.70196533203125, -1496.7142333984375)}
+		}
+
+		createDropdownElement(frame, "Quest Leviathan", leviathanLocations, function(selectedLocation)
+			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+				LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(selectedLocation.pos)
+			end
+			print("Quest Leviathan selected:", selectedLocation.name)
+		end)
+
 	elseif categoryName == "𖦹 Teleport" then
 		-- Локации для телепортации
 		local locations = {
@@ -2142,7 +2218,6 @@ local function createCategoryFrame(categoryName)
 			{["name"] = "Planetary Observatory", ["pos"] = Vector3.new(394.7527770996094, 7.251010417938232, 2157.100341796875)},
 			{["name"] = "Underwater City", ["pos"] = Vector3.new(-3183.60595703125, -637.023681640625, -10305.6787109375)},
 			{["name"] = "NEW???", ["pos"] = Vector3.new()},
-			{["name"] = "Crater Island", ["pos"] = Vector3.new(969.0936279296875, 7.362037181854248, 4872.45166015625)},
 			{["name"] = "Tropical Grove", ["pos"] = Vector3.new(-2129.407958984375, 53.48722839355469, 3741.8310546875)},
 			{["name"] = "Weather Machine", ["pos"] = Vector3.new(-1519.586669921875, 6.499998569488525, 1884.587646484375)},
 			{["name"] = "Coral Reefs", ["pos"] = Vector3.new(-3186.4384765625, 10.021647453308105, 2250.93359375)},
@@ -2240,14 +2315,14 @@ local function createCategoryFrame(categoryName)
 			local dropdownMenu = Instance.new("Frame")
 			dropdownMenu.Name = "DropdownMenu"
 			dropdownMenu.Size = UDim2.new(0, 150, 0, 0)
-			dropdownMenu.Position = UDim2.new(1, -165, 1, 5)
+		-- Позиция будет обновляться при открытии
 			dropdownMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 			dropdownMenu.BackgroundTransparency = 0.1
 			dropdownMenu.BorderSizePixel = 0
 			dropdownMenu.Visible = false
-			dropdownMenu.ZIndex = 100
-			dropdownMenu.Parent = elementFrame
-			
+			dropdownMenu.ZIndex = 10000 -- Очень высокий ZIndex для dropdown меню
+			dropdownMenu.Parent = mainFrame -- Перемещаем в mainFrame для корректного отображения поверх всего
+
 			-- Функция для расчёта ширины на основе списка игроков
 			local function calculateMenuWidth(playersList)
 				local maxTextWidth = 0
@@ -2281,9 +2356,10 @@ local function createCategoryFrame(categoryName)
 			scrollFrame.BorderSizePixel = 0
 			scrollFrame.ScrollBarThickness = 4
 			scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 100)
-			scrollFrame.ZIndex = 101
+			scrollFrame.ScrollBarImageTransparency = 0.8 -- Прозрачный ползунок
+			scrollFrame.ZIndex = 1001 -- Очень высокий ZIndex для ScrollFrame
 			scrollFrame.Parent = dropdownMenu
-			
+
 			-- UIPadding для ScrollFrame
 			local scrollPadding = Instance.new("UIPadding")
 			scrollPadding.PaddingTop = UDim.new(0, 5)
@@ -2346,7 +2422,7 @@ local function createCategoryFrame(categoryName)
 					itemButton.TextSize = 12
 					itemButton.Font = Enum.Font.GothamBold
 					itemButton.TextXAlignment = Enum.TextXAlignment.Left
-					itemButton.ZIndex = 101
+					itemButton.ZIndex = 1002 -- Очень высокий ZIndex для кнопок
 					itemButton.Parent = scrollFrame
 
 					-- UICorner
@@ -2392,7 +2468,7 @@ local function createCategoryFrame(categoryName)
 				local padding = 2
 				local totalHeight = #playersList * (itemHeight + padding) + 10
 				scrollFrame.CanvasSize = UDim2.new(0, 0, 0, totalHeight)
-				
+
 				-- Возвращаем количество игроков для расчёта высоты меню
 				return #playersList
 			end
@@ -2424,11 +2500,17 @@ local function createCategoryFrame(categoryName)
 				local totalHeight = playerCount * (itemHeight + padding) + 10
 				local maxHeight = 400
 				local menuHeight = math.min(totalHeight, maxHeight)
-				-- Рассчитываем ширину на основе имён игроков
-				local playersList = getPlayerList()
-				local menuWidth = calculateMenuWidth(playersList)
+				-- Автоматически настраиваем ширину под кнопку
+				local buttonWidth = dropdownButton.AbsoluteSize.X
+				local menuWidth = math.max(150, buttonWidth) -- Минимум 150, но не меньше ширины кнопки
 				dropdownMenu.Size = UDim2.new(0, menuWidth, 0, menuHeight)
-				dropdownMenu.Position = UDim2.new(1, -menuWidth - 15, 1, 5)
+				-- Вычисляем позицию относительно mainFrame
+				local buttonAbsolutePos = dropdownButton.AbsolutePosition
+				local mainFrameAbsolutePos = mainFrame.AbsolutePosition
+				local relativeX = buttonAbsolutePos.X - mainFrameAbsolutePos.X
+				local relativeY = buttonAbsolutePos.Y - mainFrameAbsolutePos.Y
+				-- Позиционируем dropdown под кнопкой
+				dropdownMenu.Position = UDim2.new(0, relativeX, 0, relativeY + dropdownButton.AbsoluteSize.Y + 5)
 				openDropdowns[elementFrame] = closeDropdown
 				-- Не скрываем кнопку при открытии dropdown
 				-- hideAllDropdownButtons(dropdownButton)
@@ -2492,9 +2574,46 @@ local function createCategoryFrame(categoryName)
 		end)
 
 	elseif categoryName == "☆ Auto Favorite" then
-		createToggleElement(frame, "Auto Favorite All", function(isToggled)
+		-- Uncommon
+		createToggleElement(frame, "Uncommon", function(isToggled)
+			-- TODO: Add Uncommon logic
+			print("Uncommon:", isToggled)
 		end)
-		createToggleElement(frame, "Auto Favorite Rare", function(isToggled)
+
+		-- Common
+		createToggleElement(frame, "Common", function(isToggled)
+			-- TODO: Add Common logic
+			print("Common:", isToggled)
+		end)
+
+		-- Rare
+		createToggleElement(frame, "Rare", function(isToggled)
+			-- TODO: Add Rare logic
+			print("Rare:", isToggled)
+		end)
+
+		-- Epic
+		createToggleElement(frame, "Epic", function(isToggled)
+			-- TODO: Add Epic logic
+			print("Epic:", isToggled)
+		end)
+
+		-- Mythic
+		createToggleElement(frame, "Mythic", function(isToggled)
+			-- TODO: Add Mythic logic
+			print("Mythic:", isToggled)
+		end)
+
+		-- SECRET
+		createToggleElement(frame, "SECRET", function(isToggled)
+			-- TODO: Add SECRET logic
+			print("SECRET:", isToggled)
+		end)
+
+		-- Forgotten
+		createToggleElement(frame, "Forgotten", function(isToggled)
+			-- TODO: Add Forgotten logic
+			print("Forgotten:", isToggled)
 		end)
 
 	elseif categoryName == "Webhook" then
@@ -3286,4 +3405,12 @@ LocalPlayer.CharacterAdded:Connect(function(character)
 		end
 	end
 end)
+
+-- Обновляем Character и RootPart при респавне
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+	Character = newCharacter
+	Humanoid = Character:WaitForChild("Humanoid", 5)
+	RootPart = Character:WaitForChild("HumanoidRootPart", 5)
+end)
+
 print("NexusHubX - FishIt! activated")
